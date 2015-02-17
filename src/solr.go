@@ -77,9 +77,38 @@ func fieldsPosition(index *Index) {
 	fmt.Println("%v", len(index.fieldsPosition))
 }
 
+func readBytesBuf(file *os.File, offset int64, size uint64) ([]byte, int) {
+	var buf = make([]byte, size)
+	bytes, err := file.ReadAt(buf, offset)
+
+	if err != nil && err != io.EOF {
+		panic(err)
+	}
+
+	if bytes == 0 {
+
+	}
+
+	return buf, bytes
+}
+
+func readVarIntBuf(file *os.File, offset int64) (uint64, int) {
+	var buf = make([]byte, binary.MaxVarintLen64)
+	bytes, err := file.ReadAt(buf, offset)
+
+	if err != nil && err != io.EOF {
+		panic(err)
+	}
+
+	return binary.Uvarint(buf[0:bytes])
+}
+
 func fieldsData(index *Index) {
 	// open input file
 	fi, err := os.Open("dump_solr_allcountries_v2/data/index/_9ea.fdt")
+	fiStat, err := fi.Stat()
+	var filesize int64 = fiStat.Size()
+
 	if err != nil {
 		panic(err)
 	}
@@ -91,65 +120,37 @@ func fieldsData(index *Index) {
 	}()
 
 	var offset int64 = 4
-	count := 1
+	var count int64 = 1
 
-	// see first chars
+	/*// see first chars
 	first := make([]byte, 500)
-	firstBytes, err := fi.ReadAt(first, offset)
-	fmt.Println("firstBytes %v", firstBytes)
-	fmt.Println("firstBytes %v", first[0:500])
+	firstBytes, err := fi.ReadAt(first, offset)*/
 
 	for {
-		fmt.Println("OFFSET %v", offset)
 
+		// create new doc
 		docFieldData := DocFieldData{}
 
-		// read a chunk
-		buf := make([]byte, binary.MaxVarintLen64)
-		bytes, err := fi.ReadAt(buf, offset)
-
-		if err != nil && err != io.EOF {
-			panic(err)
-		}
-		if bytes == 0 {
-			break
-		}
-
-		// fmt.Println(offset)
-
-		// FieldCount
-		value, read := binary.Uvarint(buf[0:bytes])
+		// read field count
+		value, read := readVarIntBuf(fi, offset)
 		docFieldData.fieldCount = value
+
 		offset += int64(read)
-		fmt.Println("*** VALUE %v", value)
-		fmt.Println("OFFSET %v", offset)
-		//fmt.Println("READED %v", read)
 
 		if value != 0 { // has field
 			docFieldData.fieldData = make([]DocFieldDataInfo, value)
 
 			// compute all field data
 			num := uint64(0)
-			fmt.Println("FIELD COUNT", value)
+
 			for num < value {
-				fmt.Println("*********** TOKEN ***************")
+
 				//fmt.Println("FIELD_COUNT %v", num)
 
 				fieldDataInfo := DocFieldDataInfo{}
 
-				//newOffset, err :=fi.Seek(offset, 0)
-				buf := make([]byte, binary.MaxVarintLen64)
-				bytes, err := fi.ReadAt(buf, offset)
-
-				if err != nil && err != io.EOF {
-					panic(err)
-				}
-				if bytes == 0 {
-					break
-				}
-
 				// FieldNum
-				value, read := binary.Uvarint(buf[0:bytes])
+				value, read := readVarIntBuf(fi, offset)
 				fieldDataInfo.fieldNum = value
 				offset += int64(read)
 
@@ -164,36 +165,14 @@ func fieldsData(index *Index) {
 				//fmt.Println(bytesBits)
 				offset += 1
 
-				// Value
-				bufValueSize := make([]byte, binary.MaxVarintLen64)
-				bytesValueSize, err := fi.ReadAt(bufValueSize, offset)
-
-				if err != nil && err != io.EOF {
-					panic(err)
-				}
-				if bytes == 0 {
-					break
-				}
 				// string length
-				size, readValueSize := binary.Uvarint(bufValueSize[0:bytesValueSize])
-				//fmt.Println("FIELD_LENGTH_VALUE %v", bufValueSize[0:bytesValueSize])
-
-				//fmt.Println("FIELD_LENGTH_READ_SIZE %v", readValueSize)
-				//fmt.Println("FIELD_LENGTH_READ %v", readValueSize)
+				size, readValueSize := readVarIntBuf(fi, offset)
 				offset += int64(readValueSize)
-				//fmt.Println("readValueSize", readValueSize)
+
 				// string value
-				bufValue := make([]byte, size)
-				bytesValue, err := fi.ReadAt(bufValue, offset)
+				bufValue, bytesValue := readBytesBuf(fi, offset, size)
 
-				if err != nil && err != io.EOF {
-					panic(err)
-				}
-				if bytes == 0 {
-					break
-				}
-
-				fmt.Println("VALUE %v ", string(bufValue))
+				//fmt.Println("VALUE %v ", string(bufValue))
 
 				fieldDataInfo.value = string(bufValue)
 				offset += int64(bytesValue)
@@ -206,7 +185,9 @@ func fieldsData(index *Index) {
 			//fmt.Println("%v", docFieldData)
 
 			count += 1
-			if count == 4 {
+
+			if count > filesize-10 {
+				fmt.Println("end")
 				break
 			}
 
