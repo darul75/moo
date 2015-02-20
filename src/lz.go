@@ -29,7 +29,7 @@ type Data struct {
 }
 
 type DecData struct {
-	s        bytes.Buffer
+	s        *bytes.Buffer
 	val      rune
 	position rune
 	index    int
@@ -301,99 +301,111 @@ func compress(uncompressedStr string) string {
 	return context_data_string.String()
 }
 
+// https://gist.github.com/DavidVaini/10308388
+func Round(f float64) float64 {
+	return math.Floor(f + .5)
+}
+
 func decompress(compressed string) string {
-	 dictionary := make(map[int]string)
-	 var enlargeIn float64 = 4
-	   dictSize := 4
-	   numBits := 3
-	   entry := ""
-	   result := bytes.NewBufferString("")
-	   w := ""
-	   c := 0
-	   errorCount := 0
-	   data = &DecData
-	   data.s = bytes.NewBufferString(compressed);
-	   data.val, _, err = data.s.ReadRune();
-     if err {
+	dictionary := make(map[int]string)
+	var enlargeIn float64 = 4
+	dictSize := 4
+	numBits := 3
+	entry := ""
+	result := bytes.NewBufferString("")
+	w := ""
+	c := 0
+	errorCount := 0
+	data := &DecData{}
+	data.s = bytes.NewBufferString(compressed)
+	r, _, err := data.s.ReadRune()
+	data.val = r
+	if err != nil {
 
-     }
-	   data.position = 32768
-	   data.index = 1
+	}
+	data.position = 32768
+	data.index = 1
 
-	   for i := 0; i < 3; i += 1 {
-	     dictionary[i] = strin(rune(i)))
-	   }
+	for i := 0; i < 3; i += 1 {
+		dictionary[i] = string(rune(i))
+	}
 
-	   next := readBits(2, data)
-	   switch next {
-	   case 0:
-	     c = readBits(8, data)
-	     break;
-	   case 1:
-	     c = readBits(16, data)
-	     break;
-	   case 2:
-	     return ""
-	   default
-	     pmt.Println("panic")
-	   }
-	   dictionary[3] = string(rune(c))
-	   w = string(rune(c))
-	   result.WriteString(w)
+	next := readBits(2, data)
+	switch next {
+	case 0:
+		c = readBits(8, data)
+		break
+	case 1:
+		c = readBits(16, data)
+		break
+	case 2:
+		return ""
+	default:
+		fmt.Println("panic")
+	}
+	dictionary[3] = string(rune(c))
+	w = string(rune(c))
+	result.WriteString(w)
 
-	   for {
-	     c = readBits(numBits, data)
+	for {
+		c = readBits(numBits, data)
 
-	     switch c {
-  	     case 0:
-  	       if (errorCount++ > 10000)
-  	         return "Error";
-  	       c = readBits(8, data)
-  	       dictionary.add(dictSize, string(rune(c)))
-           dictSize++
-  	       c = dictSize - 1
-  	       enlargeIn--
-  	       break
-  	     case 1:
-  	       c = readBits(16, data)
-  	       dictionary.add(dictSize, string(rune(c)))
-           dictSize++
-  	       c = dictSize - 1
-  	       enlargeIn--
-  	       break
-  	     case 2:
-  	       return result.String()
-	     }
+		switch c {
+		case 0:
+			errorCount++
+			if errorCount > 10000 {
+				return "Error"
+			}
 
-	     if (Math.round(enlargeIn) == 0) {
-	       enlargeIn = Math.pow(2, numBits);
-	       numBits++;
-	     }
+			c = readBits(8, data)
+			dictionary[dictSize] = string(rune(c))
+			dictSize++
+			c = dictSize - 1
+			enlargeIn--
+			break
+		case 1:
+			c = readBits(16, data)
+			dictionary[dictSize] = string(rune(c))
+			dictSize++
+			c = dictSize - 1
+			enlargeIn--
+			break
+		case 2:
+			return result.String()
+		}
 
-	     if (c < dictionary.size() && dictionary.get(c) != null) {
-	       entry = dictionary.get(c);
-	     } else {
-	       if (c == dictSize) {
-	         entry = w + w.charAt(0);
-	       } else {
-	         return null;
-	       }
-	     }
-	     result.append(entry);
+		if Round(enlargeIn) == 0 {
+			enlargeIn = math.Pow(2, float64(numBits))
+			numBits++
+		}
 
-	     // Add w+entry[0] to the dictionary.
-	     dictionary.add(dictSize++, w + entry.charAt(0));
-	     enlargeIn--;
+		_, ok := dictionary[c]
 
-	     w = entry;
+		if c < len(dictionary) && ok {
+			entry = dictionary[c]
+		} else {
+			if c == dictSize {
+				entry = w + string(w[0])
+			} else {
+				return ""
+			}
+		}
+		result.WriteString(string(entry))
 
-	     if (Math.round(enlargeIn) == 0) {
-	       enlargeIn = Math.pow(2, numBits);
-	       numBits++;
-	     }
+		// Add w+entry[0] to the dictionary.
+		dictionary[dictSize] = w + string(entry[0])
+		dictSize++
+		enlargeIn--
 
-	   }
-	   // return result.toString(); // Exists in JS ver, but unreachable code.*/
+		w = entry
+
+		if Round(enlargeIn) == 0 {
+			enlargeIn = math.Pow(2, float64(numBits))
+			numBits++
+		}
+
+	}
+	// return result.toString(); // Exists in JS ver, but unreachable code.*/
 	return ""
 }
 
@@ -402,7 +414,8 @@ func readBit(data *DecData) int {
 	data.position >>= 1
 	if data.position == 0 {
 		data.position = 32768
-		data.val = rune(data.s[data.index])
+		reader := bytes.NewReader(data.s.Bytes())
+		data.val, _ = rune(reader.ReadAt(make(byte[], 1), data.index))
 		data.index++
 	}
 	if res > 0 {
@@ -410,6 +423,17 @@ func readBit(data *DecData) int {
 	} else {
 		return 0
 	}
+}
+
+func readBits(numBits int, data *DecData) int {
+	res := 0
+	maxpower := math.Pow(2, float64(numBits))
+	power := 1
+	for power != int(Round(maxpower)) {
+		res |= readBit(data) * power
+		power <<= 1
+	}
+	return res
 }
 
 func main() {
