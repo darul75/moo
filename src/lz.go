@@ -1,7 +1,11 @@
 package main
 
+// http://pieroxy.net/blog/pages/lz-string/index.html
+
 import (
 	"bytes"
+	"fmt"
+	"io"
 	"math"
 )
 
@@ -25,7 +29,7 @@ type Data struct {
 }
 
 type DecData struct {
-	s        []byte
+	s        bytes.Buffer
 	val      rune
 	position rune
 	index    int
@@ -88,7 +92,14 @@ func compress(uncompressedStr string) string {
 	context_data_position := 0
 
 	uncompressed := bytes.NewBufferString(uncompressedStr)
-	for i, v := range uncompressed.Bytes() {
+	for {
+		v, _, err := uncompressed.ReadRune()
+		if err != nil {
+			if err != io.EOF {
+				return ""
+			}
+			break
+		}
 		context_c = string(v)
 		if _, ok := context_dictionary[context_c]; !ok {
 			context_dictionary[context_c] = int(context_dictSize)
@@ -242,7 +253,7 @@ func compress(uncompressedStr string) string {
 			}
 			context_dictionaryToCreate.Remove(context_w)
 		} else {
-			value, ok := context_dictionary[context_w]
+			value, _ := context_dictionary[context_w]
 			for i := 0; i < context_numBits; i++ {
 				context_data_val = (context_data_val << 1) | (value & 1)
 				if context_data_position == 15 {
@@ -290,6 +301,102 @@ func compress(uncompressedStr string) string {
 	return context_data_string.String()
 }
 
+func decompress(compressed string) string {
+	 dictionary := make(map[int]string)
+	 var enlargeIn float64 = 4
+	   dictSize := 4
+	   numBits := 3
+	   entry := ""
+	   result := bytes.NewBufferString("")
+	   w := ""
+	   c := 0
+	   errorCount := 0
+	   data = &DecData
+	   data.s = bytes.NewBufferString(compressed);
+	   data.val, _, err = data.s.ReadRune();
+     if err {
+
+     }
+	   data.position = 32768
+	   data.index = 1
+
+	   for i := 0; i < 3; i += 1 {
+	     dictionary[i] = strin(rune(i)))
+	   }
+
+	   next := readBits(2, data)
+	   switch next {
+	   case 0:
+	     c = readBits(8, data)
+	     break;
+	   case 1:
+	     c = readBits(16, data)
+	     break;
+	   case 2:
+	     return ""
+	   default
+	     pmt.Println("panic")
+	   }
+	   dictionary[3] = string(rune(c))
+	   w = string(rune(c))
+	   result.WriteString(w)
+
+	   for {
+	     c = readBits(numBits, data)
+
+	     switch c {
+  	     case 0:
+  	       if (errorCount++ > 10000)
+  	         return "Error";
+  	       c = readBits(8, data)
+  	       dictionary.add(dictSize, string(rune(c)))
+           dictSize++
+  	       c = dictSize - 1
+  	       enlargeIn--
+  	       break
+  	     case 1:
+  	       c = readBits(16, data)
+  	       dictionary.add(dictSize, string(rune(c)))
+           dictSize++
+  	       c = dictSize - 1
+  	       enlargeIn--
+  	       break
+  	     case 2:
+  	       return result.String()
+	     }
+
+	     if (Math.round(enlargeIn) == 0) {
+	       enlargeIn = Math.pow(2, numBits);
+	       numBits++;
+	     }
+
+	     if (c < dictionary.size() && dictionary.get(c) != null) {
+	       entry = dictionary.get(c);
+	     } else {
+	       if (c == dictSize) {
+	         entry = w + w.charAt(0);
+	       } else {
+	         return null;
+	       }
+	     }
+	     result.append(entry);
+
+	     // Add w+entry[0] to the dictionary.
+	     dictionary.add(dictSize++, w + entry.charAt(0));
+	     enlargeIn--;
+
+	     w = entry;
+
+	     if (Math.round(enlargeIn) == 0) {
+	       enlargeIn = Math.pow(2, numBits);
+	       numBits++;
+	     }
+
+	   }
+	   // return result.toString(); // Exists in JS ver, but unreachable code.*/
+	return ""
+}
+
 func readBit(data *DecData) int {
 	res := data.val & data.position
 	data.position >>= 1
@@ -306,7 +413,7 @@ func readBit(data *DecData) int {
 }
 
 func main() {
-
+	fmt.Println(compress("test"))
 }
 
 // UTILS
