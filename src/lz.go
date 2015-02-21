@@ -32,7 +32,7 @@ type DecData struct {
 	s        *bytes.Buffer
 	val      rune
 	position rune
-	index    int
+	index    int64
 }
 
 func writeBit(value rune, data *Data) {
@@ -117,7 +117,7 @@ func compress(uncompressedStr string) string {
 						context_data_val = context_data_val << 1
 						if context_data_position == 15 {
 							context_data_position = 0
-							context_data_string.WriteRune(rune(context_data_val))
+							context_data_string.WriteString(string(context_data_val))
 							context_data_val = 0
 						} else {
 							context_data_position++
@@ -128,7 +128,7 @@ func compress(uncompressedStr string) string {
 						context_data_val = (context_data_val << 1) | (value & 1)
 						if context_data_position == 15 {
 							context_data_position = 0
-							context_data_string.WriteRune(rune(context_data_val))
+							context_data_string.WriteString(string(context_data_val))
 							context_data_val = 0
 						} else {
 							context_data_position++
@@ -141,7 +141,7 @@ func compress(uncompressedStr string) string {
 						context_data_val = (context_data_val << 1) | value
 						if context_data_position == 15 {
 							context_data_position = 0
-							context_data_string.WriteRune(rune(context_data_val))
+							context_data_string.WriteString(string(context_data_val))
 							context_data_val = 0
 						} else {
 							context_data_position++
@@ -153,7 +153,7 @@ func compress(uncompressedStr string) string {
 						context_data_val = (context_data_val << 1) | (value & 1)
 						if context_data_position == 15 {
 							context_data_position = 0
-							context_data_string.WriteRune(rune(context_data_val))
+							context_data_string.WriteString(string(context_data_val))
 							context_data_val = 0
 						} else {
 							context_data_position++
@@ -173,7 +173,7 @@ func compress(uncompressedStr string) string {
 					context_data_val = (context_data_val << 1) | (value & 1)
 					if context_data_position == 15 {
 						context_data_position = 0
-						context_data_string.WriteRune(rune(context_data_val))
+						context_data_string.WriteString(string(context_data_val))
 						context_data_val = 0
 					} else {
 						context_data_position++
@@ -202,7 +202,7 @@ func compress(uncompressedStr string) string {
 					context_data_val = context_data_val << 1
 					if context_data_position == 15 {
 						context_data_position = 0
-						context_data_string.WriteRune(rune(context_data_val))
+						context_data_string.WriteString(string(context_data_val))
 						context_data_val = 0
 					} else {
 						context_data_position++
@@ -213,7 +213,7 @@ func compress(uncompressedStr string) string {
 					context_data_val = (context_data_val << 1) | (value & 1)
 					if context_data_position == 15 {
 						context_data_position = 0
-						context_data_string.WriteRune(rune(context_data_val))
+						context_data_string.WriteString(string(context_data_val))
 						context_data_val = 0
 					} else {
 						context_data_position++
@@ -226,7 +226,7 @@ func compress(uncompressedStr string) string {
 					context_data_val = (context_data_val << 1) | value
 					if context_data_position == 15 {
 						context_data_position = 0
-						context_data_string.WriteRune(rune(context_data_val))
+						context_data_string.WriteString(string(context_data_val))
 						context_data_val = 0
 					} else {
 						context_data_position++
@@ -238,7 +238,7 @@ func compress(uncompressedStr string) string {
 					context_data_val = (context_data_val << 1) | (value & 1)
 					if context_data_position == 15 {
 						context_data_position = 0
-						context_data_string.WriteRune(rune(context_data_val))
+						context_data_string.WriteString(string(context_data_val))
 						context_data_val = 0
 					} else {
 						context_data_position++
@@ -258,7 +258,7 @@ func compress(uncompressedStr string) string {
 				context_data_val = (context_data_val << 1) | (value & 1)
 				if context_data_position == 15 {
 					context_data_position = 0
-					context_data_string.WriteRune(rune(context_data_val))
+					context_data_string.WriteString(string(context_data_val))
 					context_data_val = 0
 				} else {
 					context_data_position++
@@ -280,7 +280,7 @@ func compress(uncompressedStr string) string {
 		context_data_val = (context_data_val << 1) | (value & 1)
 		if context_data_position == 15 {
 			context_data_position = 0
-			context_data_string.WriteRune(rune(context_data_val))
+			context_data_string.WriteString(string(context_data_val))
 			context_data_val = 0
 		} else {
 			context_data_position++
@@ -292,12 +292,13 @@ func compress(uncompressedStr string) string {
 	for {
 		context_data_val = (context_data_val << 1)
 		if context_data_position == 15 {
-			context_data_string.WriteRune(rune(context_data_val))
+			context_data_string.WriteString(string(context_data_val))
 			break
 		} else {
 			context_data_position++
 		}
 	}
+	fmt.Println("%x", context_data_string.String())
 	return context_data_string.String()
 }
 
@@ -318,11 +319,7 @@ func decompress(compressed string) string {
 	errorCount := 0
 	data := &DecData{}
 	data.s = bytes.NewBufferString(compressed)
-	r, _, err := data.s.ReadRune()
-	data.val = r
-	if err != nil {
-
-	}
+	data.val = rune(data.s.String()[0])
 	data.position = 32768
 	data.index = 1
 
@@ -343,12 +340,13 @@ func decompress(compressed string) string {
 	default:
 		fmt.Println("panic")
 	}
-	dictionary[3] = string(rune(c))
-	w = string(rune(c))
+	dictionary[3] = string(c)
+	w = string(c)
 	result.WriteString(w)
 
 	for {
 		c = readBits(numBits, data)
+		//fmt.Println(c)
 
 		switch c {
 		case 0:
@@ -414,12 +412,13 @@ func readBit(data *DecData) int {
 	data.position >>= 1
 	if data.position == 0 {
 		data.position = 32768
-		reader := bytes.NewReader(data.s.Bytes())
-		data.val, _ = rune(reader.ReadAt(make(byte[], 1), data.index))
+		str := data.s.String()
+		fmt.Println("dddd %v", data.index)
+		data.val = rune(str[data.index])
 		data.index++
 	}
 	if res > 0 {
-		return 0
+		return 1
 	} else {
 		return 0
 	}
@@ -429,6 +428,7 @@ func readBits(numBits int, data *DecData) int {
 	res := 0
 	maxpower := math.Pow(2, float64(numBits))
 	power := 1
+	fmt.Println("coucou %v", int(Round(maxpower)))
 	for power != int(Round(maxpower)) {
 		res |= readBit(data) * power
 		power <<= 1
@@ -438,6 +438,8 @@ func readBits(numBits int, data *DecData) int {
 
 func main() {
 	fmt.Println(compress("test"))
+	fmt.Println(decompress(compress("test")))
+
 }
 
 // UTILS

@@ -291,6 +291,7 @@ public class LZString {
       else
         context_data_position++;
     }
+      
     return context_data_string.toString();
   }
 
