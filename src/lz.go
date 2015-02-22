@@ -309,14 +309,14 @@ func Round(f float64) float64 {
 
 func decompress(compressed string) string {
 	dictionary := make(map[int]string)
-	// var enlargeIn float64 = 4
-	// dictSize := 4
+	var enlargeIn float64 = 4
+	dictSize := 4
 	numBits := 3
-	// entry := ""
+	entry := ""
 	result := bytes.NewBufferString("")
-	// w := ""
+	w := ""
 	c := 0
-	// errorCount := 0
+	errorCount := 0
 	data := &DecData{}
 	data.s = bytes.NewBufferString(compressed)
 	val, size, _ := data.s.ReadRune()
@@ -351,7 +351,7 @@ func decompress(compressed string) string {
 		fmt.Println("panic")
 	}
 	dictionary[3] = string(c)
-	// w = string(c)
+	w = string(c)
 	result.WriteString(dictionary[3])
 	fmt.Println(dictionary[3])
 
@@ -361,65 +361,66 @@ func decompress(compressed string) string {
 
 		break
 
-		// switch c {
-		// case 0:
-		// 	if errorCount > 10000 {
-		// 		return "Error"
-		// 	}
+		switch c {
+		case 0:
+			if errorCount > 10000 {
+				return "Error"
+			}
 
-		// 	errorCount++
-		// 	c = readBits(8, data)
-		// 	fmt.Println("cc %v", c)
-		// 	dictionary[dictSize] = string(c)
-		// 	dictSize++
-		// 	c = dictSize - 1
-		// 	enlargeIn--
-		// 	break
-		// case 1:
-		// 	c = readBits(16, data)
-		// 	dictionary[dictSize] = string(c)
-		// 	dictSize++
-		// 	c = dictSize - 1
-		// 	enlargeIn--
-		// 	break
-		// case 2:
-		// 	return result.String()
-		// }
+			errorCount++
+			c = readBits(8, data)
+			fmt.Println("cc %v", c)
+			dictionary[dictSize] = string(c)
+			dictSize++
+			c = dictSize - 1
+			enlargeIn--
+			break
+		case 1:
+			c = readBits(16, data)
+			dictionary[dictSize] = string(c)
+			dictSize++
+			c = dictSize - 1
+			enlargeIn--
+			break
+		case 2:
+			return result.String()
+		}
 
-		// if int(enlargeIn) == 0 {
-		// 	enlargeIn = math.Pow(2, float64(numBits))
-		// 	numBits++
-		// }
+		if int(enlargeIn) == 0 {
+			enlargeIn = math.Pow(2, float64(numBits))
+			numBits++
+		}
 
-		// _, ok := dictionary[c]
+		_, ok := dictionary[c]
 
-		// if c < len(dictionary) && ok {
-		// 	entry = dictionary[c]
-		// } else {
-		// 	if c == dictSize {
-		// 		entry = w + string(w[0])
-		// 	} else {
-		// 		return ""
-		// 	}
-		// }
-		// //fmt.Println("entry %v result %v", string(entry), result)
-		// result.WriteString(string(entry))
+		if c < len(dictionary) && ok {
+			entry = dictionary[c]
+		} else {
+			if c == dictSize {
+				entry = w + string(w[0])
+			} else {
+				return ""
+			}
+		}
+		//fmt.Println("entry %v result %v", string(entry), result)
+		result.WriteString(string(entry))
 
-		// // Add w+entry[0] to the dictionary.
-		// dictionary[dictSize] = w + string(entry[0])
-		// dictSize++
-		// enlargeIn--
+		// Add w+entry[0] to the dictionary.
+		dictionary[dictSize] = w + string(entry[0])
+		dictSize++
+		enlargeIn--
 
-		// w = entry
+		w = entry
 
-		// if int(enlargeIn) == 0 {
-		// 	enlargeIn = math.Pow(2, float64(numBits))
-		// 	numBits++
-		// }
+		if int(enlargeIn) == 0 {
+			enlargeIn = math.Pow(2, float64(numBits))
+			numBits++
+		}
 
 	}
 	// return result.toString(); // Exists in JS ver, but unreachable code.*/
-	return ""
+	fmt.Println("toto" + result.String())
+	return result.String()
 }
 
 func readBit(data *DecData) int {
@@ -429,9 +430,12 @@ func readBit(data *DecData) int {
 	data.position >>= 1
 	if data.position == 0 {
 		data.position = 32768
-		str := data.s.String()
+		//str := data.s.String()
+		//data.s.Seek(data.index, 0)
 		//fmt.Println("dddd %v", data.index)
-		data.val = rune(str[data.index])
+		val, size, _ := data.s.ReadRune()
+		data.val = val
+		fmt.Println(size)
 		data.index++
 	}
 	if res > 0 {
