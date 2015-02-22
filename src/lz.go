@@ -309,27 +309,37 @@ func Round(f float64) float64 {
 
 func decompress(compressed string) string {
 	dictionary := make(map[int]string)
-	var enlargeIn float64 = 4
-	dictSize := 4
+	// var enlargeIn float64 = 4
+	// dictSize := 4
 	numBits := 3
-	entry := ""
+	// entry := ""
 	result := bytes.NewBufferString("")
-	w := ""
+	// w := ""
 	c := 0
-	errorCount := 0
+	// errorCount := 0
 	data := &DecData{}
 	data.s = bytes.NewBufferString(compressed)
-	data.val = rune(data.s.String()[0])
+	val, size, _ := data.s.ReadRune()
+	data.val = val
+	fmt.Println("val ", val)
+	fmt.Println(size)
 	data.position = 32768
 	data.index = 1
 
+	fmt.Println(data.s.String())
+	fmt.Println(uint8([]byte(data.s.String())[0]))
+
 	for i := 0; i < 3; i += 1 {
-		dictionary[i] = string(rune(i))
+		dictionary[i] = string(i)
 	}
 
+	fmt.Println("init position", data.position)
 	next := readBits(2, data)
 	switch next {
 	case 0:
+		fmt.Println("case 0")
+		fmt.Println("before data.val %v", data.val)
+		fmt.Println("before data.position %v", data.position)
 		c = readBits(8, data)
 		break
 	case 1:
@@ -341,66 +351,71 @@ func decompress(compressed string) string {
 		fmt.Println("panic")
 	}
 	dictionary[3] = string(c)
-	w = string(c)
-	result.WriteString(w)
+	// w = string(c)
+	result.WriteString(dictionary[3])
+	fmt.Println(dictionary[3])
 
 	for {
+		//fmt.Println("numBits %v data %v", numBits, data)
 		c = readBits(numBits, data)
-		//fmt.Println(c)
 
-		switch c {
-		case 0:
-			errorCount++
-			if errorCount > 10000 {
-				return "Error"
-			}
+		break
 
-			c = readBits(8, data)
-			dictionary[dictSize] = string(rune(c))
-			dictSize++
-			c = dictSize - 1
-			enlargeIn--
-			break
-		case 1:
-			c = readBits(16, data)
-			dictionary[dictSize] = string(rune(c))
-			dictSize++
-			c = dictSize - 1
-			enlargeIn--
-			break
-		case 2:
-			return result.String()
-		}
+		// switch c {
+		// case 0:
+		// 	if errorCount > 10000 {
+		// 		return "Error"
+		// 	}
 
-		if Round(enlargeIn) == 0 {
-			enlargeIn = math.Pow(2, float64(numBits))
-			numBits++
-		}
+		// 	errorCount++
+		// 	c = readBits(8, data)
+		// 	fmt.Println("cc %v", c)
+		// 	dictionary[dictSize] = string(c)
+		// 	dictSize++
+		// 	c = dictSize - 1
+		// 	enlargeIn--
+		// 	break
+		// case 1:
+		// 	c = readBits(16, data)
+		// 	dictionary[dictSize] = string(c)
+		// 	dictSize++
+		// 	c = dictSize - 1
+		// 	enlargeIn--
+		// 	break
+		// case 2:
+		// 	return result.String()
+		// }
 
-		_, ok := dictionary[c]
+		// if int(enlargeIn) == 0 {
+		// 	enlargeIn = math.Pow(2, float64(numBits))
+		// 	numBits++
+		// }
 
-		if c < len(dictionary) && ok {
-			entry = dictionary[c]
-		} else {
-			if c == dictSize {
-				entry = w + string(w[0])
-			} else {
-				return ""
-			}
-		}
-		result.WriteString(string(entry))
+		// _, ok := dictionary[c]
 
-		// Add w+entry[0] to the dictionary.
-		dictionary[dictSize] = w + string(entry[0])
-		dictSize++
-		enlargeIn--
+		// if c < len(dictionary) && ok {
+		// 	entry = dictionary[c]
+		// } else {
+		// 	if c == dictSize {
+		// 		entry = w + string(w[0])
+		// 	} else {
+		// 		return ""
+		// 	}
+		// }
+		// //fmt.Println("entry %v result %v", string(entry), result)
+		// result.WriteString(string(entry))
 
-		w = entry
+		// // Add w+entry[0] to the dictionary.
+		// dictionary[dictSize] = w + string(entry[0])
+		// dictSize++
+		// enlargeIn--
 
-		if Round(enlargeIn) == 0 {
-			enlargeIn = math.Pow(2, float64(numBits))
-			numBits++
-		}
+		// w = entry
+
+		// if int(enlargeIn) == 0 {
+		// 	enlargeIn = math.Pow(2, float64(numBits))
+		// 	numBits++
+		// }
 
 	}
 	// return result.toString(); // Exists in JS ver, but unreachable code.*/
@@ -409,11 +424,13 @@ func decompress(compressed string) string {
 
 func readBit(data *DecData) int {
 	res := data.val & data.position
+	fmt.Println("data.val %v", data.val)
+	fmt.Println("data.position %v", data.position)
 	data.position >>= 1
 	if data.position == 0 {
 		data.position = 32768
 		str := data.s.String()
-		fmt.Println("dddd %v", data.index)
+		//fmt.Println("dddd %v", data.index)
 		data.val = rune(str[data.index])
 		data.index++
 	}
@@ -428,11 +445,19 @@ func readBits(numBits int, data *DecData) int {
 	res := 0
 	maxpower := math.Pow(2, float64(numBits))
 	power := 1
-	fmt.Println("coucou %v", int(Round(maxpower)))
-	for power != int(Round(maxpower)) {
+	// fmt.Println("max %v", maxpower)
+	// fmt.Println("power %v", int(power))
+	for power != int(maxpower) {
+		//fmt.Println("i %v maxpo %v power %v index %v", i, int(Round(maxpower)), power, data.index)
 		res |= readBit(data) * power
+		//fmt.Println("power before %v", power)
 		power <<= 1
+
+		//fmt.Println("power %v", power)
 	}
+
+	fmt.Println("power %v", power)
+
 	return res
 }
 

@@ -366,6 +366,7 @@ public class LZString {
 
       switch (c) {
       case 0:
+        fmt.println("8 bits")
         if (errorCount++ > 10000)
           return "Error";
         c = readBits(8, data);

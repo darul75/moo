@@ -324,6 +324,7 @@ var LZString = {
   decompress: function (compressed) {
     if (compressed == null) return "";
     if (compressed == "") return null;
+    console.log("compressed"+compressed.charCodeAt(0))
     return LZString._decompress(compressed.length, 32768, function(index) { return compressed.charCodeAt(index); });
   },
 
@@ -342,6 +343,8 @@ var LZString = {
         f = LZString._f,
         data = {val:getNextValue(0), position:resetValue, index:1};
 
+    console.log("nextvalue"+getNextValue(0))    
+
     for (i = 0; i < 3; i += 1) {
       dictionary[i] = i;
     }
@@ -349,35 +352,54 @@ var LZString = {
     bits = 0;
     maxpower = Math.pow(2,2);
     power=1;
-    while (power!=maxpower) {
-      resb = data.val & data.position;
+    console.log(data.position)
+    console.log("max"+maxpower)
+    console.log("power"+power)
+    while (power!=maxpower) {      
+      resb = data.val & data.position;               
       data.position >>= 1;
       if (data.position == 0) {
         data.position = resetValue;
-        data.val = getNextValue(data.index++);
+        data.val = getNextValue(data.index++);        
       }
       bits |= (resb>0 ? 1 : 0) * power;
       power <<= 1;
-    }
+    }    
 
+    console.log("next"+next)
+    
     switch (next = bits) {
       case 0:
+        console.log("case0");
           bits = 0;
-          maxpower = Math.pow(2,8);
+          maxpower = Math.pow(2,8);        
           power=1;
+          console.log("before data.val "+data.val)
+          console.log("before data.position "+data.position)
           while (power!=maxpower) {
             resb = data.val & data.position;
-            data.position >>= 1;
+            console.log("data.val "+data.val)
+            console.log("data.position "+data.position)
+            console.log("resb"+resb)
+            data.position >>= 1;            
             if (data.position == 0) {
               data.position = resetValue;
+              console.log("next value"+getNextValue(data.index));
               data.val = getNextValue(data.index++);
+
             }
             bits |= (resb>0 ? 1 : 0) * power;
+            console.log("bites"+bits);
             power <<= 1;
           }
+          if (power === maxpower)
+            console.log("power"+power)
         c = f(bits);
+        console.log("cc ", bits)
+        console.log("cc ", c)
         break;
       case 1:
+      console.log("case1");
           bits = 0;
           maxpower = Math.pow(2,16);
           power=1;
@@ -386,6 +408,7 @@ var LZString = {
             data.position >>= 1;
             if (data.position == 0) {
               data.position = resetValue;
+              console.log("next value"+getNextValue(data.index));
               data.val = getNextValue(data.index++);
             }
             bits |= (resb>0 ? 1 : 0) * power;
@@ -398,6 +421,7 @@ var LZString = {
     }
     dictionary[3] = c;
     w = result = c;
+    console.log("w "+w)
     while (true) {
       if (data.index > length) {
         return "";
@@ -494,4 +518,4 @@ if( typeof module !== 'undefined' && module != null ) {
   module.exports = LZString
 }
 
-console.log(LZString.compress("test"))
+console.log(LZString.decompress(LZString.compress("test")))
