@@ -285,6 +285,7 @@ public class LZString {
     while (true) {
       context_data_val = (context_data_val << 1);
       if (context_data_position == 15) {
+        console.log("flush " +  (char) context_data_val)
         context_data_string.append((char) context_data_val);
         break;
       }
@@ -365,8 +366,7 @@ public class LZString {
       c = readBits(numBits, data);
 
       switch (c) {
-      case 0:
-        fmt.println("8 bits")
+      case 0:        
         if (errorCount++ > 10000)
           return "Error";
         c = readBits(8, data);

@@ -1,4 +1,4 @@
-package lz
+package main
 
 import (
 	"bytes"
@@ -6,7 +6,25 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"unicode/utf8"
 )
+
+func main() {
+	original := "hello1hello2hello3hello4hello5hello6"
+	data := &Data{original, ""}
+
+	str := data.Encode()
+	fmt.Println(len(str))
+	fmt.Println(str)
+
+	end := data.Decode()
+
+	fmt.Println("decode", end)
+
+	// if end != original {
+	// 	//t.Errorf("OMG")
+	// }
+}
 
 // USEFUL DOC
 // http://www.goinggo.net/2014/03/exportedunexported-identifiers-in-go.html
@@ -31,6 +49,7 @@ type Data struct {
 func (data *Data) Encode() string {
 
 	data.Encoded = compress(data.Value)
+	fmt.Println(len(data.Encoded))
 	return data.Encoded
 }
 
@@ -71,8 +90,8 @@ type EncData struct {
 type DecData struct {
 	s        *bytes.Reader
 	val      rune
-	position rune
-	index    int64
+	position int
+	index    int
 }
 
 // MAIN METHODS
@@ -93,7 +112,9 @@ func compress(uncompressedStr string) string {
 	for {
 		v, _, err := uncompressed.ReadRune()
 		if err != nil {
+			fmt.Println("EOF")
 			if err != io.EOF {
+				fmt.Println("EOF")
 				return ""
 			}
 			break
@@ -106,7 +127,10 @@ func compress(uncompressedStr string) string {
 		}
 
 		context_wc = context_w + context_c
+		//fmt.Println("context_wc %v", context_wc)
+
 		if _, ok := context_dictionary[context_wc]; ok {
+			fmt.Println("ok")
 			context_w = context_wc
 		} else {
 			if context_dictionaryToCreate.Contains(context_w) {
@@ -114,19 +138,28 @@ func compress(uncompressedStr string) string {
 					for i := 0; i < context_numBits; i++ {
 						context_data_val = context_data_val << 1
 						if context_data_position == 15 {
+							// OK
 							context_data_position = 0
-							context_data_string.WriteString(string(context_data_val))
+							// buf := []byte{context_data_val}
+							// utf8.EncodeRune(buf, rune(context_data_val))
+							context_data_string.WriteRune(rune(context_data_val))
+							// context_data_string.WriteByte(byte(context_data_val))
+							fmt.Println("1) writeString")
+							fmt.Println("size %v", len(context_data_string.String()))
 							context_data_val = 0
 						} else {
 							context_data_position++
 						}
 					}
-					value = int(context_w[0])
+					value = int(context_w[0]) // OK
 					for i := 0; i < 8; i++ {
 						context_data_val = (context_data_val << 1) | (value & 1)
 						if context_data_position == 15 {
+							// OK
 							context_data_position = 0
-							context_data_string.WriteString(string(context_data_val))
+							context_data_string.WriteRune(rune(context_data_val))
+							fmt.Println("2) writeString")
+							fmt.Println("size %v", len(context_data_string.String()))
 							context_data_val = 0
 						} else {
 							context_data_position++
@@ -134,12 +167,13 @@ func compress(uncompressedStr string) string {
 						value = value >> 1
 					}
 				} else {
+					fmt.Println("else %v")
 					value = 1
 					for i := 0; i < context_numBits; i++ {
 						context_data_val = (context_data_val << 1) | value
 						if context_data_position == 15 {
 							context_data_position = 0
-							context_data_string.WriteString(string(context_data_val))
+							context_data_string.WriteByte(byte(context_data_val))
 							context_data_val = 0
 						} else {
 							context_data_position++
@@ -151,7 +185,7 @@ func compress(uncompressedStr string) string {
 						context_data_val = (context_data_val << 1) | (value & 1)
 						if context_data_position == 15 {
 							context_data_position = 0
-							context_data_string.WriteString(string(context_data_val))
+							context_data_string.WriteByte(byte(context_data_val))
 							context_data_val = 0
 						} else {
 							context_data_position++
@@ -171,14 +205,15 @@ func compress(uncompressedStr string) string {
 					context_data_val = (context_data_val << 1) | (value & 1)
 					if context_data_position == 15 {
 						context_data_position = 0
-						context_data_string.WriteString(string(context_data_val))
+						context_data_string.WriteRune(rune(context_data_val))
+						fmt.Println("3) writeString")
+						fmt.Println("size %v", len(context_data_string.String()))
 						context_data_val = 0
 					} else {
 						context_data_position++
 					}
 					value = value >> 1
 				}
-
 			}
 			context_enlargeIn--
 			if context_enlargeIn == 0 {
@@ -194,13 +229,16 @@ func compress(uncompressedStr string) string {
 
 	// Output the code for w.
 	if context_w != "" {
+		fmt.Println("not empty")
 		if context_dictionaryToCreate.Contains(context_w) {
+			fmt.Println("vv %v", int(context_w[0]))
 			if int(context_w[0]) < 256 {
 				for i := 0; i < context_numBits; i++ {
 					context_data_val = context_data_val << 1
 					if context_data_position == 15 {
 						context_data_position = 0
-						context_data_string.WriteString(string(context_data_val))
+						context_data_string.WriteRune(rune(context_data_val))
+						fmt.Println("context_data_val %v", context_data_val)
 						context_data_val = 0
 					} else {
 						context_data_position++
@@ -211,7 +249,9 @@ func compress(uncompressedStr string) string {
 					context_data_val = (context_data_val << 1) | (value & 1)
 					if context_data_position == 15 {
 						context_data_position = 0
-						context_data_string.WriteString(string(context_data_val))
+						context_data_string.WriteRune(rune(context_data_val))
+						fmt.Println("2) writeString")
+						fmt.Println("size %v", len(context_data_string.String()))
 						context_data_val = 0
 					} else {
 						context_data_position++
@@ -224,7 +264,7 @@ func compress(uncompressedStr string) string {
 					context_data_val = (context_data_val << 1) | value
 					if context_data_position == 15 {
 						context_data_position = 0
-						context_data_string.WriteString(string(context_data_val))
+						context_data_string.WriteRune(rune(context_data_val))
 						context_data_val = 0
 					} else {
 						context_data_position++
@@ -236,7 +276,7 @@ func compress(uncompressedStr string) string {
 					context_data_val = (context_data_val << 1) | (value & 1)
 					if context_data_position == 15 {
 						context_data_position = 0
-						context_data_string.WriteString(string(context_data_val))
+						context_data_string.WriteRune(rune(context_data_val))
 						context_data_val = 0
 					} else {
 						context_data_position++
@@ -256,7 +296,8 @@ func compress(uncompressedStr string) string {
 				context_data_val = (context_data_val << 1) | (value & 1)
 				if context_data_position == 15 {
 					context_data_position = 0
-					context_data_string.WriteString(string(context_data_val))
+					fmt.Println("writeString")
+					context_data_string.WriteRune(rune(context_data_val))
 					context_data_val = 0
 				} else {
 					context_data_position++
@@ -278,7 +319,8 @@ func compress(uncompressedStr string) string {
 		context_data_val = (context_data_val << 1) | (value & 1)
 		if context_data_position == 15 {
 			context_data_position = 0
-			context_data_string.WriteString(string(context_data_val))
+			fmt.Println("writeString")
+			context_data_string.WriteRune(rune(context_data_val))
 			context_data_val = 0
 		} else {
 			context_data_position++
@@ -290,12 +332,15 @@ func compress(uncompressedStr string) string {
 	for {
 		context_data_val = (context_data_val << 1)
 		if context_data_position == 15 {
-			context_data_string.WriteString(string(context_data_val))
+			fmt.Println("writeString")
+			context_data_string.WriteRune(rune(context_data_val))
 			break
 		} else {
 			context_data_position++
 		}
 	}
+
+	fmt.Println("bytes %v", []byte(context_data_string.String()))
 	return context_data_string.String()
 }
 
@@ -305,66 +350,95 @@ func Round(f float64) float64 {
 }
 
 func decompress(compressed string) string {
-	dictionary := make(map[int]string)
+	fmt.Println("bytes %v", []byte(compressed))
+	runeCount := utf8.RuneCountInString(compressed)
+	fmt.Println(runeCount)
+	dictionary := make(map[string]string)
 	var enlargeIn float64 = 4
 	dictSize := 4
 	numBits := 3
 	entry := ""
 	result := bytes.NewBufferString("")
 	w := ""
-	c := 0
+	var c int
+
 	data := &DecData{}
 	data.s = bytes.NewReader([]byte(compressed))
-	val, _, err := data.s.ReadRune()
+	data.position = 32768
+	val, size, err := data.s.ReadRune()
+
+	originalValue := val
+
 	if err == io.EOF {
 		fmt.Println(err) // EOF
 		return ""
 	}
 	data.val = val
-	data.position = 32768
-	data.index = 1
+	data.index = size
+	fmt.Println("data.val %v", data.val)
 
 	for i := 0; i < 3; i += 1 {
-		dictionary[i] = string(i)
+		dictionary[string(i)] = string(i)
 	}
 
+	// test := data.s.UnreadRune()
+	// if test != nil {
+	// 	fmt.Println("ok")
+	// }
+	// data.index -= size
+
+	fmt.Println("init c %v", originalValue)
+
 	next := readBits(2, data)
+	fmt.Println("next", string(next))
 	switch next {
 	case 0:
 		c = readBits(8, data)
+		fmt.Println("ccedille %v", c)
 		break
 	case 1:
 		c = readBits(16, data)
 		break
 	case 2:
+		fmt.Println("case 2")
 		return ""
 	default:
 		fmt.Println("panic")
 	}
-	dictionary[3] = string(c)
+
+	// test2 := data.s.UnreadRune()
+	// if test2 != nil {
+	// 	fmt.Println("ok")
+	// }
+
+	dictionary[string(3)] = string(c)
 	w = string(c)
-	result.WriteString(dictionary[3])
+	result.WriteString(w)
+	fmt.Println(dictionary)
+	i := 0
 
 	for {
+		i++
 		c = readBits(numBits, data)
+		fmt.Println("c %v", byte(c))
 
 		switch c {
 		case 0:
-			fmt.Println("********** 0 ***********")
 			c = readBits(8, data)
-			dictionary[dictSize] = string(c)
+			dictionary[string(dictSize)] = string(c)
 			dictSize++
-			c = dictSize - 1
+			c = (dictSize - 1)
 			enlargeIn--
 			break
 		case 1:
 			c = readBits(16, data)
-			dictionary[dictSize] = string(c)
+			dictionary[string(dictSize)] = string(c)
 			dictSize++
-			c = dictSize - 1
+			c = (dictSize - 1)
 			enlargeIn--
 			break
 		case 2:
+			fmt.Println("********** 2 ***********")
 			return result.String()
 		}
 
@@ -373,18 +447,21 @@ func decompress(compressed string) string {
 			numBits++
 		}
 
-		_, ok := dictionary[c]
+		_, ok := dictionary[string(c)]
+
+		//fmt.Println("c %v", c)
 
 		if ok {
-			entry = dictionary[c]
-			fmt.Println("\n\ncontains %v", entry)
+			entry = dictionary[string(c)]
+			//fmt.Println("contains %v", entry)
 		} else {
-			fmt.Println("else")
-			fmt.Println("len %v", len(dictionary))
+			// fmt.Println("else")
 			fmt.Println("c %v", c)
-			if c == len(dictionary) {
+			fmt.Println("len %v", len(dictionary))
+			if int(c) == len(dictionary) {
 				entry = w + string(w[0])
 			} else {
+				fmt.Println("i %v", i)
 				return ""
 			}
 		}
@@ -392,11 +469,13 @@ func decompress(compressed string) string {
 		result.WriteString(string(entry))
 
 		// Add w+entry[0] to the dictionary.
-		dictionary[dictSize] = w + string(entry[0])
+		dictionary[string(dictSize)] = w + string(entry[0])
 		dictSize++
 		enlargeIn--
 
 		w = entry
+
+		fmt.Println("dictionary %v", w+string(entry[0]))
 
 		if int(enlargeIn) == 0 {
 			enlargeIn = math.Pow(2, float64(numBits))
@@ -436,42 +515,6 @@ func decompress64(input string) string {
 
 // WRITERS
 
-func writeBit(value rune, data *EncData) {
-	data.val = rune((data.val << 1) | value)
-	if data.position == 15 {
-		data.position = 0
-		data.s.WriteRune(data.val)
-		data.val = 0
-	} else {
-		data.position++
-	}
-}
-
-func writeBits(numBits int, value rune, data *EncData) {
-	for i := 0; i < numBits; i++ {
-		writeBit((value & 1), data)
-		value = (value >> 1)
-	}
-}
-
-func produceW(context *Context) {
-	if context.dictionaryToCreate.Contains(context.w) {
-		var firstChar rune = rune(context.w[0])
-		if firstChar < 256 {
-			writeBits(context.numBits, 0, context.data)
-			writeBits(8, firstChar, context.data)
-		} else {
-			writeBits(context.numBits, 1, context.data)
-			writeBits(16, firstChar, context.data)
-		}
-		decrementEnlargeIn(context)
-		context.dictionaryToCreate.Remove(context.w)
-	} else {
-		writeBits(context.numBits, context.dictionary[context.w], context.data)
-	}
-	decrementEnlargeIn(context)
-}
-
 func decrementEnlargeIn(context *Context) {
 	context.enlargeIn--
 	if int(context.enlargeIn) == 0 {
@@ -483,14 +526,15 @@ func decrementEnlargeIn(context *Context) {
 // BIT EXTRACTION
 
 func readBit(data *DecData) int {
-	res := data.val & data.position
+	res := int(data.val) & data.position
 	data.position >>= 1
 
 	if data.position == 0 {
 		data.position = 32768
 		val, size, _ := data.s.ReadRune()
+		size++
 		data.val = val
-		data.index += int64(size)
+		data.index += size
 	}
 	if res > 0 {
 		return 1
@@ -500,16 +544,12 @@ func readBit(data *DecData) int {
 }
 
 func readBits(numBits int, data *DecData) int {
-	res := 0
+	var res int = 0
 	maxpower := math.Pow(2, float64(numBits))
 	power := 1
 	for power != int(maxpower) {
-		/*fmt.Println("begin data.val %v", data.val)
-		fmt.Println("begin data.position %v", data.position)
-		fmt.Println("begin data.index %v", data.index)*/
 		res |= readBit(data) * power
 		power <<= 1
-		/*fmt.Println("iteration %v", data.val)*/
 	}
 
 	return res

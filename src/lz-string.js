@@ -127,28 +127,35 @@ var LZString = {
         context_dictionaryToCreate[context_c] = true;
       }
 
-      context_wc = context_w + context_c;
+      context_wc = context_w + context_c;     
+      //console.log(context_wc)
+
       if (Object.prototype.hasOwnProperty.call(context_dictionary,context_wc)) {
+        console.log("ok")
         context_w = context_wc;
       } else {
-        if (Object.prototype.hasOwnProperty.call(context_dictionaryToCreate,context_w)) {
+        if (Object.prototype.hasOwnProperty.call(context_dictionaryToCreate,context_w)) {          
           if (context_w.charCodeAt(0)<256) {
             for (i=0 ; i<context_numBits ; i++) {
               context_data_val = (context_data_val << 1);
               if (context_data_position == bitsPerChar-1) {
                 context_data_position = 0;
                 context_data_string += getCharFromInt(context_data_val);
+                console.log("1) writeString")
+                console.log("size " + context_data_string.length)   
                 context_data_val = 0;
               } else {
                 context_data_position++;
               }
             }
-            value = context_w.charCodeAt(0);
+            value = context_w.charCodeAt(0);            
             for (i=0 ; i<8 ; i++) {
               context_data_val = (context_data_val << 1) | (value&1);
               if (context_data_position == bitsPerChar-1) {
                 context_data_position = 0;
                 context_data_string += getCharFromInt(context_data_val);
+                console.log("2) writeString")
+                console.log("size " + context_data_string.length)   
                 context_data_val = 0;
               } else {
                 context_data_position++;
@@ -156,6 +163,7 @@ var LZString = {
               value = value >> 1;
             }
           } else {
+            console.log("else ")
             value = 1;
             for (i=0 ; i<context_numBits ; i++) {
               context_data_val = (context_data_val << 1) | value;
@@ -188,20 +196,19 @@ var LZString = {
           }
           delete context_dictionaryToCreate[context_w];
         } else {
-          value = context_dictionary[context_w];
+          value = context_dictionary[context_w];          
           for (i=0 ; i<context_numBits ; i++) {
             context_data_val = (context_data_val << 1) | (value&1);
             if (context_data_position == bitsPerChar-1) {
               context_data_position = 0;
               context_data_string += getCharFromInt(context_data_val);
+              console.log("writeString")
               context_data_val = 0;
             } else {
               context_data_position++;
             }
             value = value >> 1;
           }
-
-
         }
         context_enlargeIn--;
         if (context_enlargeIn == 0) {
@@ -216,13 +223,17 @@ var LZString = {
 
     // Output the code for w.
     if (context_w !== "") {
+      console.log("not empty")
       if (Object.prototype.hasOwnProperty.call(context_dictionaryToCreate,context_w)) {
+        console.log("vv "+context_w.charCodeAt(0))
         if (context_w.charCodeAt(0)<256) {
           for (i=0 ; i<context_numBits ; i++) {
             context_data_val = (context_data_val << 1);
             if (context_data_position == bitsPerChar-1) {
               context_data_position = 0;
               context_data_string += getCharFromInt(context_data_val);
+              console.log("1) writeString")
+              console.log("size " + context_data_string.length)              
               context_data_val = 0;
             } else {
               context_data_position++;
@@ -234,6 +245,8 @@ var LZString = {
             if (context_data_position == bitsPerChar-1) {
               context_data_position = 0;
               context_data_string += getCharFromInt(context_data_val);
+              console.log("2) writeString")
+              console.log("size " + context_data_string.length)
               context_data_val = 0;
             } else {
               context_data_position++;
@@ -247,6 +260,7 @@ var LZString = {
             if (context_data_position == bitsPerChar-1) {
               context_data_position = 0;
               context_data_string += getCharFromInt(context_data_val);
+              console.log("writeString")
               context_data_val = 0;
             } else {
               context_data_position++;
@@ -259,6 +273,7 @@ var LZString = {
             if (context_data_position == bitsPerChar-1) {
               context_data_position = 0;
               context_data_string += getCharFromInt(context_data_val);
+              console.log("writeString")
               context_data_val = 0;
             } else {
               context_data_position++;
@@ -279,6 +294,8 @@ var LZString = {
           if (context_data_position == bitsPerChar-1) {
             context_data_position = 0;
             context_data_string += getCharFromInt(context_data_val);
+            console.log("3) writeString")
+            console.log("size " + context_data_string.length)
             context_data_val = 0;
           } else {
             context_data_position++;
@@ -302,6 +319,7 @@ var LZString = {
       if (context_data_position == bitsPerChar-1) {
         context_data_position = 0;
         context_data_string += getCharFromInt(context_data_val);
+        console.log("writeString")
         context_data_val = 0;
       } else {
         context_data_position++;
@@ -314,6 +332,7 @@ var LZString = {
       context_data_val = (context_data_val << 1);
       if (context_data_position == bitsPerChar-1) {
         context_data_string += getCharFromInt(context_data_val);
+        console.log("writeString")
         break;
       }
       else context_data_position++;
@@ -346,6 +365,8 @@ var LZString = {
     for (i = 0; i < 3; i += 1) {
       dictionary[i] = i;
     }
+
+    console.log("coucou", data.val)
 
     bits = 0;
     maxpower = Math.pow(2,2);
@@ -381,6 +402,7 @@ var LZString = {
           }
           if (power === maxpower)
             console.log("power"+power)
+          console.log("bits up "+ bits)
         c = f(bits);        
         break;
       case 1:
@@ -401,14 +423,17 @@ var LZString = {
         c = f(bits);
         break;
       case 2:
+        console.log("case 2")
         return "";
     }
+    console.log("ccccc" + c)
     dictionary[3] = c;
     w = result = c;
     /*console.log("w "+w)
     console.log("data.position "+data.position)
     console.log("numBits "+numBits)*/
-    while (true) {
+    while (true) {      
+      //console.log("data.index "+data.index)
       if (data.index > length) {
         return "";
       }
@@ -416,7 +441,7 @@ var LZString = {
       bits = 0;
       maxpower = Math.pow(2,numBits);
       power=1;
-      while (power!=maxpower) {
+      while (power!=maxpower) {        
         resb = data.val & data.position;
         data.position >>= 1;
         if (data.position == 0) {
@@ -428,9 +453,12 @@ var LZString = {
         /*console.log("iteration "+data.val)*/
       }
 
-      switch (c = bits) {
+      c = bits
+      //console.log("c " +c);
+
+      switch (c) {
         case 0:
-          console.log("********** 0 ***********");
+          //console.log("********** 0 ***********");
           bits = 0;
           maxpower = Math.pow(2,8);
           power=1;
@@ -485,7 +513,7 @@ var LZString = {
           return result;
       }
 
-      if (enlargeIn == 0) {
+      if (enlargeIn == 0) {        
         enlargeIn = Math.pow(2, numBits);
         numBits++;
       }
@@ -495,11 +523,11 @@ var LZString = {
 
       if (dictionary[c]) {
         entry = dictionary[c];
-        console.log("\n\ncontains " + entry)
+        //console.log("\n\ncontains " + entry)
       } else {
-        console.log("******* else **********")
-        console.log(dictionary.length)
-        console.log(c)
+        //console.log("******* else **********")
+        console.log("len"+dictionary.length)
+        console.log("c"+c)
         if (c === dictSize) {
           entry = w + w[0];
         } else {
@@ -512,9 +540,11 @@ var LZString = {
       dictionary[dictSize++] = w + entry[0];
       enlargeIn--;
 
+      console.log("dictionary " + w + entry[0])      
+
       w = entry;
 
-      if (enlargeIn == 0) {
+      if (enlargeIn == 0) {        
         enlargeIn = Math.pow(2, numBits);
         numBits++;
       }
@@ -527,4 +557,10 @@ if( typeof module !== 'undefined' && module != null ) {
   module.exports = LZString
 }
 
-console.log(LZString.decompress(LZString.compress("hello1hello2hello3hello4hello5hello6hello7hello8hello9helloAhelloBhelloChelloDhelloEhelloF")))
+// var compressed = LZString.compress("hello1hello2hello3hello4hello5hello6hello7hello8hello9helloAhelloBhelloChelloDhelloEhelloF")
+
+var compressed = LZString.compress("hello1hello2hello3hello4hello5hello6")
+
+console.log(compressed.length)
+console.log(compressed)
+console.log(LZString.decompress(compressed))
