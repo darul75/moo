@@ -2,6 +2,7 @@ package lz
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"math"
@@ -15,7 +16,9 @@ import (
 
 type Lz interface {
 	Encode(value string) string
+	Encode64(value string) string
 	Decode(value string) string
+	Decode64(value string) string
 }
 
 // WRAPPER
@@ -26,12 +29,23 @@ type Data struct {
 }
 
 func (data *Data) Encode() string {
+
 	data.Encoded = compress(data.Value)
+	return data.Encoded
+}
+
+func (data *Data) Encode64() string {
+
+	data.Encoded = compress64(data.Value)
 	return data.Encoded
 }
 
 func (data *Data) Decode() string {
 	return decompress(data.Encoded)
+}
+
+func (data *Data) Decode64() string {
+	return decompress64(data.Encoded)
 }
 
 // LZ ALGO STRUCT
@@ -299,7 +313,6 @@ func decompress(compressed string) string {
 	result := bytes.NewBufferString("")
 	w := ""
 	c := 0
-	errorCount := 0
 	data := &DecData{}
 	data.s = bytes.NewReader([]byte(compressed))
 	val, _, err := data.s.ReadRune()
@@ -337,11 +350,7 @@ func decompress(compressed string) string {
 
 		switch c {
 		case 0:
-			if errorCount > 10000 {
-				return "Error"
-			}
-
-			errorCount++
+			fmt.Println("********** 0 ***********")
 			c = readBits(8, data)
 			dictionary[dictSize] = string(c)
 			dictSize++
@@ -366,9 +375,13 @@ func decompress(compressed string) string {
 
 		_, ok := dictionary[c]
 
-		if c < len(dictionary) && ok {
+		if ok {
 			entry = dictionary[c]
+			fmt.Println("\n\ncontains %v", entry)
 		} else {
+			fmt.Println("else")
+			fmt.Println("len %v", len(dictionary))
+			fmt.Println("c %v", c)
 			if c == len(dictionary) {
 				entry = w + string(w[0])
 			} else {
@@ -392,6 +405,33 @@ func decompress(compressed string) string {
 
 	}
 	return result.String()
+}
+
+const (
+	_keyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="
+)
+
+// BASE 64 / 16
+func compress64(input string) string {
+	if input == "" {
+		return ""
+	}
+	input = base64.StdEncoding.EncodeToString([]byte(input))
+
+	fmt.Println(input)
+
+	return compress(input)
+}
+
+func decompress64(input string) string {
+	if input == "" {
+		return ""
+	}
+	bytes, _ := base64.StdEncoding.DecodeString(input)
+
+	fmt.Println(string(bytes))
+
+	return decompress(string(bytes))
 }
 
 // WRITERS
@@ -464,8 +504,12 @@ func readBits(numBits int, data *DecData) int {
 	maxpower := math.Pow(2, float64(numBits))
 	power := 1
 	for power != int(maxpower) {
+		/*fmt.Println("begin data.val %v", data.val)
+		fmt.Println("begin data.position %v", data.position)
+		fmt.Println("begin data.index %v", data.index)*/
 		res |= readBit(data) * power
 		power <<= 1
+		/*fmt.Println("iteration %v", data.val)*/
 	}
 
 	return res

@@ -1,14 +1,16 @@
 package lz
 
 import (
+	"fmt"
 	"testing"
 )
 
 func TestEncoding(t *testing.T) {
-	original := "test"
+	original := "hello1hello2hello3hello4hello5hello6hello7hello8hello9helloAhelloBhelloChelloDhelloEhelloF"
 	data := &Data{original, ""}
 
-	data.Encode()
+	str := data.Encode()
+	fmt.Println(str)
 	end := data.Decode()
 
 	if end != original {

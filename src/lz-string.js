@@ -405,9 +405,9 @@ var LZString = {
     }
     dictionary[3] = c;
     w = result = c;
-    console.log("w "+w)
+    /*console.log("w "+w)
     console.log("data.position "+data.position)
-    console.log("numBits "+numBits)
+    console.log("numBits "+numBits)*/
     while (true) {
       if (data.index > length) {
         return "";
@@ -425,7 +425,7 @@ var LZString = {
         }
         bits |= (resb>0 ? 1 : 0) * power;
         power <<= 1;
-        console.log("iteration"+data.val)
+        /*console.log("iteration "+data.val)*/
       }
 
       switch (c = bits) {
@@ -435,27 +435,27 @@ var LZString = {
           maxpower = Math.pow(2,8);
           power=1;
           while (power!=maxpower) {
-            console.log("-------------------");
-            console.log("begin data.val "+data.val)
+            /*console.log("-------------------");*/
+            /*console.log("begin data.val "+data.val)
             console.log("begin data.position " + data.position)
-            console.log("begin data.index " + data.index)
+            console.log("begin data.index " + data.index)*/
             resb = data.val & data.position;
-            console.log("power"+power)
-            console.log("res "+resb)
+            /*console.log("power"+power)
+            console.log("res "+resb)*/
             data.position >>= 1;
-            console.log("offset"+data.position)
+            /*console.log("offset"+data.position)*/
             if (data.position == 0) {
               data.position = resetValue;
-              console.log("data.index"+data.index)
+              /*console.log("data.index"+data.index)*/
               data.val = getNextValue(data.index++);
-              console.log("data.val"+data.val)
+              /*console.log("data.val"+data.val)*/
             }
             bits |= (resb>0 ? 1 : 0) * power;
             power <<= 1;
           }
 
-          console.log("data.position", data.position);
-          console.log("bits", bits);
+          /*console.log("data.position", data.position);
+          console.log("bits", bits);*/
 
           dictionary[dictSize++] = f(bits);
           c = dictSize-1;
@@ -490,12 +490,16 @@ var LZString = {
         numBits++;
       }
 
-      console.log(" ccc " + c)
-      console.log(" dictSize " + dictSize)
+      /*console.log(" ccc " + c)
+      console.log(" dictSize " + dictSize)*/
 
       if (dictionary[c]) {
         entry = dictionary[c];
+        console.log("\n\ncontains " + entry)
       } else {
+        console.log("******* else **********")
+        console.log(dictionary.length)
+        console.log(c)
         if (c === dictSize) {
           entry = w + w[0];
         } else {
@@ -523,4 +527,4 @@ if( typeof module !== 'undefined' && module != null ) {
   module.exports = LZString
 }
 
-console.log(LZString.decompress(LZString.compress("test")))
+console.log(LZString.decompress(LZString.compress("hello1hello2hello3hello4hello5hello6hello7hello8hello9helloAhelloBhelloChelloDhelloEhelloF")))
