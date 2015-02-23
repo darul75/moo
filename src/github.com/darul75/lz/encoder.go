@@ -7,27 +7,31 @@ import (
 	"math"
 )
 
+// USEFUL DOC
+// http://www.goinggo.net/2014/03/exportedunexported-identifiers-in-go.html
+// http://pieroxy.net/blog/pages/lz-string/index.html
+
 // INTERFACE
 
 type Lz interface {
-	encode(value string) string
-	decode(value string) string
+	Encode(value string) string
+	Decode(value string) string
 }
 
 // WRAPPER
 
 type Data struct {
-	value   string
-	encoded string
+	Value   string
+	Encoded string
 }
 
-func (data *Data) encode() string {
-	data.encoded = compress(data.value)
-	return data.encoded
+func (data *Data) Encode() string {
+	data.Encoded = compress(data.Value)
+	return data.Encoded
 }
 
-func (data *Data) decode() string {
-	return decompress(data.encoded)
+func (data *Data) Decode() string {
+	return decompress(data.Encoded)
 }
 
 // LZ ALGO STRUCT
