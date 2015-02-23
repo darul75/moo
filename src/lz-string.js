@@ -341,9 +341,7 @@ var LZString = {
         bits, resb, maxpower, power,
         c,
         f = LZString._f,
-        data = {val:getNextValue(0), position:resetValue, index:1};
-
-    console.log("nextvalue"+getNextValue(0))    
+        data = {val:getNextValue(0), position:resetValue, index:1};    
 
     for (i = 0; i < 3; i += 1) {
       dictionary[i] = i;
@@ -351,10 +349,7 @@ var LZString = {
 
     bits = 0;
     maxpower = Math.pow(2,2);
-    power=1;
-    console.log(data.position)
-    console.log("max"+maxpower)
-    console.log("power"+power)
+    power=1;    
     while (power!=maxpower) {      
       resb = data.val & data.position;               
       data.position >>= 1;
@@ -373,30 +368,20 @@ var LZString = {
         console.log("case0");
           bits = 0;
           maxpower = Math.pow(2,8);        
-          power=1;
-          console.log("before data.val "+data.val)
-          console.log("before data.position "+data.position)
+          power=1;          
           while (power!=maxpower) {
-            resb = data.val & data.position;
-            console.log("data.val "+data.val)
-            console.log("data.position "+data.position)
-            console.log("resb"+resb)
+            resb = data.val & data.position;            
             data.position >>= 1;            
             if (data.position == 0) {
-              data.position = resetValue;
-              console.log("next value"+getNextValue(data.index));
+              data.position = resetValue;              
               data.val = getNextValue(data.index++);
-
             }
-            bits |= (resb>0 ? 1 : 0) * power;
-            console.log("bites"+bits);
+            bits |= (resb>0 ? 1 : 0) * power;            
             power <<= 1;
           }
           if (power === maxpower)
             console.log("power"+power)
-        c = f(bits);
-        console.log("cc ", bits)
-        console.log("cc ", c)
+        c = f(bits);        
         break;
       case 1:
       console.log("case1");
@@ -407,8 +392,7 @@ var LZString = {
             resb = data.val & data.position;
             data.position >>= 1;
             if (data.position == 0) {
-              data.position = resetValue;
-              console.log("next value"+getNextValue(data.index));
+              data.position = resetValue;              
               data.val = getNextValue(data.index++);
             }
             bits |= (resb>0 ? 1 : 0) * power;
@@ -422,6 +406,8 @@ var LZString = {
     dictionary[3] = c;
     w = result = c;
     console.log("w "+w)
+    console.log("data.position "+data.position)
+    console.log("numBits "+numBits)
     while (true) {
       if (data.index > length) {
         return "";
@@ -439,29 +425,44 @@ var LZString = {
         }
         bits |= (resb>0 ? 1 : 0) * power;
         power <<= 1;
+        console.log("iteration"+data.val)
       }
 
       switch (c = bits) {
         case 0:
+          console.log("********** 0 ***********");
           bits = 0;
           maxpower = Math.pow(2,8);
           power=1;
           while (power!=maxpower) {
+            console.log("-------------------");
+            console.log("begin data.val "+data.val)
+            console.log("begin data.position " + data.position)
+            console.log("begin data.index " + data.index)
             resb = data.val & data.position;
+            console.log("power"+power)
+            console.log("res "+resb)
             data.position >>= 1;
+            console.log("offset"+data.position)
             if (data.position == 0) {
               data.position = resetValue;
+              console.log("data.index"+data.index)
               data.val = getNextValue(data.index++);
+              console.log("data.val"+data.val)
             }
             bits |= (resb>0 ? 1 : 0) * power;
             power <<= 1;
           }
+
+          console.log("data.position", data.position);
+          console.log("bits", bits);
 
           dictionary[dictSize++] = f(bits);
           c = dictSize-1;
           enlargeIn--;
           break;
         case 1:
+          console.log("********** 1 ***********");
           bits = 0;
           maxpower = Math.pow(2,16);
           power=1;
@@ -480,6 +481,7 @@ var LZString = {
           enlargeIn--;
           break;
         case 2:
+          console.log("********** 2 ***********");
           return result;
       }
 
@@ -487,6 +489,9 @@ var LZString = {
         enlargeIn = Math.pow(2, numBits);
         numBits++;
       }
+
+      console.log(" ccc " + c)
+      console.log(" dictSize " + dictSize)
 
       if (dictionary[c]) {
         entry = dictionary[c];

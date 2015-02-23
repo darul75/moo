@@ -1,6 +1,4 @@
-package main
-
-// http://pieroxy.net/blog/pages/lz-string/index.html
+package lz
 
 import (
 	"bytes"
@@ -8,6 +6,31 @@ import (
 	"io"
 	"math"
 )
+
+// INTERFACE
+
+type Lz interface {
+	encode(value string) string
+	decode(value string) string
+}
+
+// WRAPPER
+
+type Data struct {
+	value   string
+	encoded string
+}
+
+func (data *Data) encode() string {
+	data.encoded = compress(data.value)
+	return data.encoded
+}
+
+func (data *Data) decode() string {
+	return decompress(data.encoded)
+}
+
+// LZ ALGO STRUCT
 
 type Context struct {
 	dictionary         map[string]rune
@@ -18,66 +41,23 @@ type Context struct {
 	enlargeIn          float64
 	dictSize           int
 	numBits            int
-	data               *Data
-	//Data data = new Data();
+	data               *EncData
 }
 
-type Data struct {
+type EncData struct {
 	val      rune
 	position int
 	s        bytes.Buffer
 }
 
 type DecData struct {
-	s        *bytes.Buffer
+	s        *bytes.Reader
 	val      rune
 	position rune
 	index    int64
 }
 
-func writeBit(value rune, data *Data) {
-	data.val = rune((data.val << 1) | value)
-	if data.position == 15 {
-		data.position = 0
-		data.s.WriteRune(data.val)
-		data.val = 0
-	} else {
-		data.position++
-	}
-}
-
-func writeBits(numBits int, value rune, data *Data) {
-	for i := 0; i < numBits; i++ {
-		writeBit((value & 1), data)
-		value = (value >> 1)
-	}
-}
-
-func produceW(context *Context) {
-	if context.dictionaryToCreate.Contains(context.w) {
-		var firstChar rune = rune(context.w[0])
-		if firstChar < 256 {
-			writeBits(context.numBits, 0, context.data)
-			writeBits(8, firstChar, context.data)
-		} else {
-			writeBits(context.numBits, 1, context.data)
-			writeBits(16, firstChar, context.data)
-		}
-		decrementEnlargeIn(context)
-		context.dictionaryToCreate.Remove(context.w)
-	} else {
-		writeBits(context.numBits, context.dictionary[context.w], context.data)
-	}
-	decrementEnlargeIn(context)
-}
-
-func decrementEnlargeIn(context *Context) {
-	context.enlargeIn--
-	if int(context.enlargeIn) == 0 {
-		context.enlargeIn = math.Pow(2, float64(context.numBits))
-		context.numBits++
-	}
-}
+// MAIN METHODS
 
 func compress(uncompressedStr string) string {
 	value := 0
@@ -298,7 +278,6 @@ func compress(uncompressedStr string) string {
 			context_data_position++
 		}
 	}
-	fmt.Println("%x", context_data_string.String())
 	return context_data_string.String()
 }
 
@@ -318,28 +297,23 @@ func decompress(compressed string) string {
 	c := 0
 	errorCount := 0
 	data := &DecData{}
-	data.s = bytes.NewBufferString(compressed)
-	val, size, _ := data.s.ReadRune()
+	data.s = bytes.NewReader([]byte(compressed))
+	val, _, err := data.s.ReadRune()
+	if err == io.EOF {
+		fmt.Println(err) // EOF
+		return ""
+	}
 	data.val = val
-	fmt.Println("val ", val)
-	fmt.Println(size)
 	data.position = 32768
 	data.index = 1
-
-	fmt.Println(data.s.String())
-	fmt.Println(uint8([]byte(data.s.String())[0]))
 
 	for i := 0; i < 3; i += 1 {
 		dictionary[i] = string(i)
 	}
 
-	fmt.Println("init position", data.position)
 	next := readBits(2, data)
 	switch next {
 	case 0:
-		fmt.Println("case 0")
-		fmt.Println("before data.val %v", data.val)
-		fmt.Println("before data.position %v", data.position)
 		c = readBits(8, data)
 		break
 	case 1:
@@ -353,13 +327,9 @@ func decompress(compressed string) string {
 	dictionary[3] = string(c)
 	w = string(c)
 	result.WriteString(dictionary[3])
-	fmt.Println(dictionary[3])
 
 	for {
-		//fmt.Println("numBits %v data %v", numBits, data)
 		c = readBits(numBits, data)
-
-		break
 
 		switch c {
 		case 0:
@@ -369,7 +339,6 @@ func decompress(compressed string) string {
 
 			errorCount++
 			c = readBits(8, data)
-			fmt.Println("cc %v", c)
 			dictionary[dictSize] = string(c)
 			dictSize++
 			c = dictSize - 1
@@ -396,7 +365,7 @@ func decompress(compressed string) string {
 		if c < len(dictionary) && ok {
 			entry = dictionary[c]
 		} else {
-			if c == dictSize {
+			if c == len(dictionary) {
 				entry = w + string(w[0])
 			} else {
 				return ""
@@ -418,25 +387,66 @@ func decompress(compressed string) string {
 		}
 
 	}
-	// return result.toString(); // Exists in JS ver, but unreachable code.*/
-	fmt.Println("toto" + result.String())
 	return result.String()
 }
 
+// WRITERS
+
+func writeBit(value rune, data *EncData) {
+	data.val = rune((data.val << 1) | value)
+	if data.position == 15 {
+		data.position = 0
+		data.s.WriteRune(data.val)
+		data.val = 0
+	} else {
+		data.position++
+	}
+}
+
+func writeBits(numBits int, value rune, data *EncData) {
+	for i := 0; i < numBits; i++ {
+		writeBit((value & 1), data)
+		value = (value >> 1)
+	}
+}
+
+func produceW(context *Context) {
+	if context.dictionaryToCreate.Contains(context.w) {
+		var firstChar rune = rune(context.w[0])
+		if firstChar < 256 {
+			writeBits(context.numBits, 0, context.data)
+			writeBits(8, firstChar, context.data)
+		} else {
+			writeBits(context.numBits, 1, context.data)
+			writeBits(16, firstChar, context.data)
+		}
+		decrementEnlargeIn(context)
+		context.dictionaryToCreate.Remove(context.w)
+	} else {
+		writeBits(context.numBits, context.dictionary[context.w], context.data)
+	}
+	decrementEnlargeIn(context)
+}
+
+func decrementEnlargeIn(context *Context) {
+	context.enlargeIn--
+	if int(context.enlargeIn) == 0 {
+		context.enlargeIn = math.Pow(2, float64(context.numBits))
+		context.numBits++
+	}
+}
+
+// BIT EXTRACTION
+
 func readBit(data *DecData) int {
 	res := data.val & data.position
-	fmt.Println("data.val %v", data.val)
-	fmt.Println("data.position %v", data.position)
 	data.position >>= 1
+
 	if data.position == 0 {
 		data.position = 32768
-		//str := data.s.String()
-		//data.s.Seek(data.index, 0)
-		//fmt.Println("dddd %v", data.index)
 		val, size, _ := data.s.ReadRune()
 		data.val = val
-		fmt.Println(size)
-		data.index++
+		data.index += int64(size)
 	}
 	if res > 0 {
 		return 1
@@ -449,29 +459,16 @@ func readBits(numBits int, data *DecData) int {
 	res := 0
 	maxpower := math.Pow(2, float64(numBits))
 	power := 1
-	// fmt.Println("max %v", maxpower)
-	// fmt.Println("power %v", int(power))
 	for power != int(maxpower) {
-		//fmt.Println("i %v maxpo %v power %v index %v", i, int(Round(maxpower)), power, data.index)
 		res |= readBit(data) * power
-		//fmt.Println("power before %v", power)
 		power <<= 1
-
-		//fmt.Println("power %v", power)
 	}
-
-	fmt.Println("power %v", power)
 
 	return res
 }
 
-func main() {
-	fmt.Println(compress("test"))
-	fmt.Println(decompress(compress("test")))
-
-}
-
 // UTILS
+
 type Hashset map[string]bool
 
 func NewSet() Hashset {
