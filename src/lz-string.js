@@ -1,362 +1,126 @@
-// Copyright (c) 2013 Pieroxy <pieroxy@pieroxy.net>
+// Copyright © 2013 Pieroxy <pieroxy@pieroxy.net>
 // This work is free. You can redistribute it and/or modify it
 // under the terms of the WTFPL, Version 2
 // For more information see LICENSE.txt or http://www.wtfpl.net/
 //
-// For more information, the home page:
-// http://pieroxy.net/blog/pages/lz-string/testing.html
-//
-// LZ-based compression algorithm, version 1.4.0-alpha
+// LZ-based compression algorithm, version 1.0.2-rc1
 var LZString = {
 
-  // private property
-  _f : String.fromCharCode,
-  _keyStrBase64 : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
-  _keyStrUriSafe : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$",
-  _getBaseValue : function(alphabet, character) {
-    if (!LZString._baseReverseDic) LZString._baseReverseDic = {};
-    if (!LZString._baseReverseDic[alphabet]) {
-      LZString._baseReverseDic[alphabet] = {};
-      for (var i=0 ; i<alphabet.length ; i++) {
-        LZString._baseReverseDic[alphabet][alphabet[i]] = i;
-      }
-    }
-    return LZString._baseReverseDic[alphabet][character];
-  },
-
-  compressToBase64 : function (input) {
-    if (input == null) return "";
-    var res = LZString._compress(input, 6, function(a){return LZString._keyStrBase64.charAt(a);});
-    switch (res.length % 4) { // To produce valid Base64
-    default: // When could this happen ?
-    case 0 : return res;
-    case 1 : return res+"===";
-    case 2 : return res+"==";
-    case 3 : return res+"=";
-    }
-  },
-
-  decompressFromBase64 : function (input) {
-    if (input == null) return "";
-    if (input == "") return null;
-    return LZString._decompress(input.length, 32, function(index) { return LZString._getBaseValue(LZString._keyStrBase64, input.charAt(index)); });
-  },
-
-  compressToUTF16 : function (input) {
-    if (input == null) return "";
-    return LZString._compress(input, 15, function(a){return String.fromCharCode(a+32);}) + " ";
-  },
-
-  decompressFromUTF16: function (compressed) {
-    if (compressed == null) return "";
-    if (compressed == "") return null;
-    return LZString._decompress(compressed.length, 16384, function(index) { return compressed.charCodeAt(index) - 32; });
-  },
-
-  //compress into uint8array (UCS-2 big endian format)
-  compressToUint8Array: function (uncompressed) {
-    var compressed = LZString.compress(uncompressed);
-    var buf=new Uint8Array(compressed.length*2); // 2 bytes per character
-
-    for (var i=0, TotalLen=compressed.length; i<TotalLen; i++) {
-      var current_value = compressed.charCodeAt(i);
-      buf[i*2] = current_value >>> 8;
-      buf[i*2+1] = current_value % 256;
-    }
-    return buf;
-  },
-
-  //decompress from uint8array (UCS-2 big endian format)
-  decompressFromUint8Array:function (compressed) {
-    if (compressed===null || compressed===undefined){
-        return LZString.decompress(compressed);
+  writeBit : function(value, data) {
+    data.val = (data.val << 1) | value;
+    if (data.position == 15) {
+      data.position = 0;
+      data.string += String.fromCharCode(data.val);
+      data.val = 0;
     } else {
-        var buf=new Array(compressed.length/2); // 2 bytes per character
-        for (var i=0, TotalLen=buf.length; i<TotalLen; i++) {
-          buf[i]=compressed[i*2]*256+compressed[i*2+1];
-        }
-
-        var result = "";
-        buf.forEach(function (c) {
-	  result = result + String.fromCharCode(c);
-	});
-        return LZString.decompress(result);
-
+      data.position++;
     }
-
   },
-
-
-  //compress into a string that is already URI encoded
-  compressToEncodedURIComponent: function (input) {
-    if (input == null) return "";
-    return LZString._compress(input, 6, function(a){return LZString._keyStrUriSafe.charAt(a);});
-  },
-
-  //decompress from an output of compressToEncodedURIComponent
-  decompressFromEncodedURIComponent:function (input) {
-    if (input == null) return "";
-    if (input == "") return null;
-    return LZString._decompress(input.length, 32, function(index) { return LZString._getBaseValue(LZString._keyStrUriSafe, input.charAt(index)); });
-  },
-
-  compress: function (uncompressed) {
-    return LZString._compress(uncompressed, 16, function(a){return String.fromCharCode(a);});
-  },
-  _compress: function (uncompressed, bitsPerChar, getCharFromInt) {
-    if (uncompressed == null) return "";
-    var i, value,
-        context_dictionary= {},
-        context_dictionaryToCreate= {},
-        context_c="",
-        context_wc="",
-        context_w="",
-        context_enlargeIn= 2, // Compensate for the first entry which should not count
-        context_dictSize= 3,
-        context_numBits= 2,
-        context_data_string="",
-        context_data_val=0,
-        context_data_position=0,
-        ii,
-        f=LZString._f;
-
-    for (ii = 0; ii < uncompressed.length; ii += 1) {
-      context_c = uncompressed[ii];
-      if (!Object.prototype.hasOwnProperty.call(context_dictionary,context_c)) {
-        context_dictionary[context_c] = context_dictSize++;
-        context_dictionaryToCreate[context_c] = true;
-      }
-
-      context_wc = context_w + context_c;     
-      //console.log(context_wc)
-
-      if (Object.prototype.hasOwnProperty.call(context_dictionary,context_wc)) {
-        console.log("ok")
-        context_w = context_wc;
-      } else {
-        if (Object.prototype.hasOwnProperty.call(context_dictionaryToCreate,context_w)) {          
-          if (context_w.charCodeAt(0)<256) {
-            for (i=0 ; i<context_numBits ; i++) {
-              context_data_val = (context_data_val << 1);
-              if (context_data_position == bitsPerChar-1) {
-                context_data_position = 0;
-                context_data_string += getCharFromInt(context_data_val);
-                console.log("1) writeString")
-                console.log("size " + context_data_string.length)   
-                context_data_val = 0;
-              } else {
-                context_data_position++;
-              }
-            }
-            value = context_w.charCodeAt(0);            
-            for (i=0 ; i<8 ; i++) {
-              context_data_val = (context_data_val << 1) | (value&1);
-              if (context_data_position == bitsPerChar-1) {
-                context_data_position = 0;
-                context_data_string += getCharFromInt(context_data_val);
-                console.log("2) writeString")
-                console.log("size " + context_data_string.length)   
-                context_data_val = 0;
-              } else {
-                context_data_position++;
-              }
-              value = value >> 1;
-            }
-          } else {
-            console.log("else ")
-            value = 1;
-            for (i=0 ; i<context_numBits ; i++) {
-              context_data_val = (context_data_val << 1) | value;
-              if (context_data_position ==bitsPerChar-1) {
-                context_data_position = 0;
-                context_data_string += getCharFromInt(context_data_val);
-                context_data_val = 0;
-              } else {
-                context_data_position++;
-              }
-              value = 0;
-            }
-            value = context_w.charCodeAt(0);
-            for (i=0 ; i<16 ; i++) {
-              context_data_val = (context_data_val << 1) | (value&1);
-              if (context_data_position == bitsPerChar-1) {
-                context_data_position = 0;
-                context_data_string += getCharFromInt(context_data_val);
-                context_data_val = 0;
-              } else {
-                context_data_position++;
-              }
-              value = value >> 1;
-            }
-          }
-          context_enlargeIn--;
-          if (context_enlargeIn == 0) {
-            context_enlargeIn = Math.pow(2, context_numBits);
-            context_numBits++;
-          }
-          delete context_dictionaryToCreate[context_w];
-        } else {
-          value = context_dictionary[context_w];          
-          for (i=0 ; i<context_numBits ; i++) {
-            context_data_val = (context_data_val << 1) | (value&1);
-            if (context_data_position == bitsPerChar-1) {
-              context_data_position = 0;
-              context_data_string += getCharFromInt(context_data_val);
-              console.log("writeString")
-              context_data_val = 0;
-            } else {
-              context_data_position++;
-            }
-            value = value >> 1;
-          }
-        }
-        context_enlargeIn--;
-        if (context_enlargeIn == 0) {
-          context_enlargeIn = Math.pow(2, context_numBits);
-          context_numBits++;
-        }
-        // Add wc to the dictionary.
-        context_dictionary[context_wc] = context_dictSize++;
-        context_w = String(context_c);
-      }
-    }
-
-    // Output the code for w.
-    if (context_w !== "") {
-      console.log("not empty")
-      if (Object.prototype.hasOwnProperty.call(context_dictionaryToCreate,context_w)) {
-        console.log("vv "+context_w.charCodeAt(0))
-        if (context_w.charCodeAt(0)<256) {
-          for (i=0 ; i<context_numBits ; i++) {
-            context_data_val = (context_data_val << 1);
-            if (context_data_position == bitsPerChar-1) {
-              context_data_position = 0;
-              context_data_string += getCharFromInt(context_data_val);
-              console.log("1) writeString")
-              console.log("size " + context_data_string.length)              
-              context_data_val = 0;
-            } else {
-              context_data_position++;
-            }
-          }
-          value = context_w.charCodeAt(0);
-          for (i=0 ; i<8 ; i++) {
-            context_data_val = (context_data_val << 1) | (value&1);
-            if (context_data_position == bitsPerChar-1) {
-              context_data_position = 0;
-              context_data_string += getCharFromInt(context_data_val);
-              console.log("2) writeString")
-              console.log("size " + context_data_string.length)
-              context_data_val = 0;
-            } else {
-              context_data_position++;
-            }
-            value = value >> 1;
-          }
-        } else {
-          value = 1;
-          for (i=0 ; i<context_numBits ; i++) {
-            context_data_val = (context_data_val << 1) | value;
-            if (context_data_position == bitsPerChar-1) {
-              context_data_position = 0;
-              context_data_string += getCharFromInt(context_data_val);
-              console.log("writeString")
-              context_data_val = 0;
-            } else {
-              context_data_position++;
-            }
-            value = 0;
-          }
-          value = context_w.charCodeAt(0);
-          for (i=0 ; i<16 ; i++) {
-            context_data_val = (context_data_val << 1) | (value&1);
-            if (context_data_position == bitsPerChar-1) {
-              context_data_position = 0;
-              context_data_string += getCharFromInt(context_data_val);
-              console.log("writeString")
-              context_data_val = 0;
-            } else {
-              context_data_position++;
-            }
-            value = value >> 1;
-          }
-        }
-        context_enlargeIn--;
-        if (context_enlargeIn == 0) {
-          context_enlargeIn = Math.pow(2, context_numBits);
-          context_numBits++;
-        }
-        delete context_dictionaryToCreate[context_w];
-      } else {
-        value = context_dictionary[context_w];
-        for (i=0 ; i<context_numBits ; i++) {
-          context_data_val = (context_data_val << 1) | (value&1);
-          if (context_data_position == bitsPerChar-1) {
-            context_data_position = 0;
-            context_data_string += getCharFromInt(context_data_val);
-            console.log("3) writeString")
-            console.log("size " + context_data_string.length)
-            context_data_val = 0;
-          } else {
-            context_data_position++;
-          }
-          value = value >> 1;
-        }
-
-
-      }
-      context_enlargeIn--;
-      if (context_enlargeIn == 0) {
-        context_enlargeIn = Math.pow(2, context_numBits);
-        context_numBits++;
-      }
-    }
-
-    // Mark the end of the stream
-    value = 2;
-    for (i=0 ; i<context_numBits ; i++) {
-      context_data_val = (context_data_val << 1) | (value&1);
-      if (context_data_position == bitsPerChar-1) {
-        context_data_position = 0;
-        context_data_string += getCharFromInt(context_data_val);
-        console.log("writeString")
-        context_data_val = 0;
-      } else {
-        context_data_position++;
-      }
+  
+  writeBits : function(numBits, value, data) {
+    if (typeof(value)=="string")
+      value = value.charCodeAt(0);
+    for (var i=0 ; i<numBits ; i++) {
+      this.writeBit(value&1, data);
       value = value >> 1;
     }
-
-    // Flush the last char
-    while (true) {
-      context_data_val = (context_data_val << 1);
-      if (context_data_position == bitsPerChar-1) {
-        context_data_string += getCharFromInt(context_data_val);
-        console.log("writeString")
-        break;
+  },
+  
+  produceW : function (context) {
+    if (Object.prototype.hasOwnProperty.call(context.dictionaryToCreate,context.w)) {
+      if (context.w.charCodeAt(0)<256) {
+        this.writeBits(context.numBits, 0, context.data);
+        this.writeBits(8, context.w, context.data);
+      } else {
+        this.writeBits(context.numBits, 1, context.data);
+        this.writeBits(16, context.w, context.data);
       }
-      else context_data_position++;
+      this.decrementEnlargeIn(context);
+      delete context.dictionaryToCreate[context.w];
+    } else {
+      this.writeBits(context.numBits, context.dictionary[context.w], context.data);
     }
-    return context_data_string;
+    this.decrementEnlargeIn(context);
   },
-
+  
+  decrementEnlargeIn : function(context) {
+    context.enlargeIn--;
+    if (context.enlargeIn == 0) {
+      context.enlargeIn = Math.pow(2, context.numBits);
+      context.numBits++;
+    }
+  },
+  
+  compress: function (uncompressed) {
+    var context = {
+      dictionary: {},
+      dictionaryToCreate: {},
+      c:"",
+      wc:"",
+      w:"",
+      enlargeIn: 2, // Compensate for the first entry which should not count
+      dictSize: 3,
+      numBits: 2,
+      result: "",
+      data: {string:"", val:0, position:0}
+    }, i;
+    
+    for (i = 0; i < uncompressed.length; i += 1) {
+      context.c = uncompressed.charAt(i);
+      if (!Object.prototype.hasOwnProperty.call(context.dictionary,context.c)) {
+        context.dictionary[context.c] = context.dictSize++;
+        context.dictionaryToCreate[context.c] = true;
+      }
+      
+      context.wc = context.w + context.c;
+      if (Object.prototype.hasOwnProperty.call(context.dictionary,context.wc)) {
+        context.w = context.wc;
+      } else {
+        this.produceW(context);
+        // Add wc to the dictionary.
+        context.dictionary[context.wc] = context.dictSize++;
+        context.w = String(context.c);
+      }
+    }
+    
+    // Output the code for w.
+    if (context.w !== "") {
+      this.produceW(context);
+    }
+    
+    // Mark the end of the stream
+    this.writeBits(context.numBits, 2, context.data);
+    
+    // Flush the last char
+    while (context.data.val>0) this.writeBit(0,context.data)
+    return context.data.string;
+  },
+  
+  readBit : function(data) {
+    var res = data.val & data.position;
+    data.position >>= 1;
+    console.log(res)
+    if (data.position == 0) {
+      data.position = 32768;
+      data.val = data.string.charCodeAt(data.index++);
+    }
+    //data.val = (data.val << 1);
+    return res>0 ? 1 : 0;
+  },
+  
+  readBits : function(numBits, data) {
+    var res = 0;
+    var maxpower = Math.pow(2,numBits);
+    var power=1;    
+    while (power!=maxpower) {      
+      res |= this.readBit(data) * power;
+      power <<= 1;
+    }
+    return res;
+  },
+  
   decompress: function (compressed) {
-    var bytes = [];
-
-    for (var i = 0; i < compressed.length; ++i)
-    {
-        bytes.push(compressed.charCodeAt(i));
-    }
-
-    console.log("bytes", bytes);
-    if (compressed == null) return "";
-    if (compressed == "") return null;
-    console.log("compressed"+compressed.charCodeAt(0))
-    return LZString._decompress(compressed.length, 32768, function(index) { return compressed.charCodeAt(index); });
-  },
-
-  _decompress: function (length, resetValue, getNextValue) {
-    var dictionary = [],
+    var dictionary = {},
         next,
         enlargeIn = 4,
         dictSize = 4,
@@ -365,221 +129,86 @@ var LZString = {
         result = "",
         i,
         w,
-        bits, resb, maxpower, power,
         c,
-        f = LZString._f,
-        data = {val:getNextValue(0), position:resetValue, index:1};    
-
+        errorCount=0,
+        literal,
+        data = {string:compressed, val:compressed.charCodeAt(0), position:32768, index:1};
+    
     for (i = 0; i < 3; i += 1) {
       dictionary[i] = i;
     }
-
-    console.log("coucou", data.val)
-
-    bits = 0;
-    maxpower = Math.pow(2,2);
-    power=1;    
-    while (power!=maxpower) {      
-      resb = data.val & data.position;               
-      data.position >>= 1;
-      if (data.position == 0) {
-        data.position = resetValue;
-        data.val = getNextValue(data.index++);        
-      }
-      bits |= (resb>0 ? 1 : 0) * power;
-      power <<= 1;
-    }    
-
-    next = bits
-    console.log("next"+next)
     
+    next = this.readBits(2, data);
     switch (next) {
-      case 0:
-        console.log("case0");
-          bits = 0;
-          maxpower = Math.pow(2,8);        
-          power=1;          
-          while (power!=maxpower) {
-            resb = data.val & data.position;            
-            data.position >>= 1;            
-            if (data.position == 0) {
-              data.position = resetValue;              
-              data.val = getNextValue(data.index++);
-            }
-            bits |= (resb>0 ? 1 : 0) * power;            
-            power <<= 1;
-          }
-          if (power === maxpower)
-            console.log("power"+power)
-          console.log("bits up "+ bits)
-        c = f(bits);        
+      case 0: 
+        c = String.fromCharCode(this.readBits(8, data));
         break;
-      case 1:
-      console.log("case1");
-          bits = 0;
-          maxpower = Math.pow(2,16);
-          power=1;
-          while (power!=maxpower) {
-            resb = data.val & data.position;
-            data.position >>= 1;
-            if (data.position == 0) {
-              data.position = resetValue;              
-              data.val = getNextValue(data.index++);
-            }
-            bits |= (resb>0 ? 1 : 0) * power;
-            power <<= 1;
-          }
-        c = f(bits);
+      case 1: 
+        c = String.fromCharCode(this.readBits(16, data));
         break;
-      case 2:
-        console.log("case 2")
+      case 2: 
         return "";
     }
-    console.log("ccccc" + c)
     dictionary[3] = c;
     w = result = c;
-    console.log(dictionary)
 
+    /*console.log(w)
+    console.log(result)
+    console.log(c)
+    console.log(dictionary)*/
 
-    /*console.log("w "+w)
-    console.log("data.position "+data.position)
-    console.log("numBits "+numBits)*/
-    while (true) {      
-      //console.log("data.index "+data.index)
-      if (data.index > length) {
-        return "";
-      }
-
-      bits = 0;
-      maxpower = Math.pow(2,numBits);
-      power=1;
-      while (power!=maxpower) {        
-        resb = data.val & data.position;
-        data.position >>= 1;
-        if (data.position == 0) {
-          data.position = resetValue;
-          data.val = getNextValue(data.index++);
-        }
-        bits |= (resb>0 ? 1 : 0) * power;
-        power <<= 1;
-        /*console.log("iteration "+data.val)*/
-      }
-
-      c = bits
-      console.log("c " +c);
-
+    while (true) {
+      c = this.readBits(numBits, data);      
+      
       switch (c) {
-        case 0:
-          //console.log("********** 0 ***********");
-          bits = 0;
-          maxpower = Math.pow(2,8);
-          power=1;
-          while (power!=maxpower) {
-            /*console.log("-------------------");*/
-            /*console.log("begin data.val "+data.val)
-            console.log("begin data.position " + data.position)
-            console.log("begin data.index " + data.index)*/
-            resb = data.val & data.position;
-            /*console.log("power"+power)
-            console.log("res "+resb)*/
-            data.position >>= 1;
-            /*console.log("offset"+data.position)*/
-            if (data.position == 0) {
-              data.position = resetValue;
-              /*console.log("data.index"+data.index)*/
-              data.val = getNextValue(data.index++);
-              /*console.log("data.val"+data.val)*/
-            }
-            bits |= (resb>0 ? 1 : 0) * power;
-            power <<= 1;
-          }
-
-          /*console.log("data.position", data.position);
-          console.log("bits", bits);*/
-
-          dictionary[dictSize++] = f(bits);
+        case 0: 
+          if (errorCount++ > 10000) return "Error";
+          c = String.fromCharCode(this.readBits(8, data));
+          dictionary[dictSize++] = c;
           c = dictSize-1;
           enlargeIn--;
           break;
-        case 1:
-          console.log("********** 1 ***********");
-          bits = 0;
-          maxpower = Math.pow(2,16);
-          power=1;
-          while (power!=maxpower) {
-            resb = data.val & data.position;
-            data.position >>= 1;
-            if (data.position == 0) {
-              data.position = resetValue;
-              data.val = getNextValue(data.index++);
-            }
-            bits |= (resb>0 ? 1 : 0) * power;
-            power <<= 1;
-          }
-          dictionary[dictSize++] = f(bits);
+        case 1: 
+          c = String.fromCharCode(this.readBits(16, data));
+          dictionary[dictSize++] = c;
           c = dictSize-1;
           enlargeIn--;
           break;
-        case 2:
-          console.log("********** 2 ***********");
+        case 2: 
           return result;
-      }
-
-      if (enlargeIn == 0) {        
+      }      
+      
+      if (enlargeIn == 0) {
         enlargeIn = Math.pow(2, numBits);
         numBits++;
       }
 
-      /*console.log(" ccc " + c)
-      console.log(" dictSize " + dictSize)*/
-
       if (dictionary[c]) {
         entry = dictionary[c];
-        //console.log("\n\ncontains " + entry)
       } else {
-        //console.log("******* else **********")
-        console.log("len"+dictionary.length)
-        console.log("c"+c)
         if (c === dictSize) {
-          entry = w + w[0];
+          entry = w + w.charAt(0);
         } else {
           return null;
         }
       }
       result += entry;
-
+      
       // Add w+entry[0] to the dictionary.
-      console.log("w " +w);
-      console.log("entry[0] " +entry[0]);      
-      console.log("w + entry[0] "+w + entry[0]);
-
-      dictionary[dictSize++] = w + entry[0];
+      dictionary[dictSize++] = w + entry.charAt(0);
       enlargeIn--;
-
-      console.log("dictionary " + w + entry[0])      
-
+      
       w = entry;
-
-      if (enlargeIn == 0) {    
-        console.log("ENLARGE")    
+      
+      if (enlargeIn == 0) {
         enlargeIn = Math.pow(2, numBits);
         numBits++;
       }
-
+      
     }
+    return result;
   }
 };
 
-if( typeof module !== 'undefined' && module != null ) {
-  module.exports = LZString
-}
-
-// var compressed = LZString.compress("hello1hello2hello3hello4hello5hello6hello7hello8hello9helloAhelloBhelloChelloDhelloEhelloF")
-
-//var compressed = LZString.compress("hello1hello2hello3hello4hello5hello6")
 var compressed = LZString.compress("hello1hello2hello3hello4hello5hello6")
 console.log(LZString.decompress(compressed))
-
-/*console.log(compressed.length)
-console.log(compressed)
-console.log(LZString.decompress(compressed))*/

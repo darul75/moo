@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"math"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -16,6 +17,7 @@ func main() {
 	fmt.Println("ORIGINAL %v", notworking)
 	data := &Data{notworking, ""}
 	data.Encode()
+
 	fmt.Println("DECODED", data.Decode())
 
 	fmt.Println("ORIGINAL %v", working)
@@ -46,7 +48,6 @@ type Data struct {
 }
 
 func (data *Data) Encode() string {
-
 	data.Encoded = compress(data.Value)
 	return data.Encoded
 }
@@ -69,7 +70,7 @@ func (data *Data) Decode64() string {
 
 type Context struct {
 	dictionary         map[string]rune
-	dictionaryToCreate *Hashset
+	dictionaryToCreate Hashset
 	c                  string
 	wc                 string
 	w                  string
@@ -82,7 +83,7 @@ type Context struct {
 type EncData struct {
 	val      rune
 	position int
-	s        bytes.Buffer
+	s        *bytes.Buffer
 }
 
 type DecData struct {
@@ -96,242 +97,114 @@ type DecData struct {
 // MAIN METHODS
 
 func compress(uncompressedStr string) string {
-	value := 0
-	context_dictionary := make(map[string]int)
-	context_dictionaryToCreate := NewSet()
-	context_c, context_wc, context_w := "", "", ""
-	var context_enlargeIn float64 = 2.0 // Compensate for the first entry which should not count
-	context_dictSize := 3
-	context_numBits := 2
-	context_data_string := bytes.NewBufferString("")
-	context_data_val := 0
-	context_data_position := 0
+	set := NewSet()
+	ctx := &Context{}
+	ctx.dictionary = make(map[string]rune)
+	ctx.dictionaryToCreate = set
+	ctx.c = ""
+	ctx.wc = ""
+	ctx.w = ""
+	ctx.enlargeIn = 2.0
+	ctx.dictSize = 3
+	ctx.numBits = 2
+	ctx.data = &EncData{0, 0, bytes.NewBufferString("")}
 
 	//uncompressed := bytes.NewBufferString(uncompressedStr)
 
 	runeCount := utf8.RuneCountInString(uncompressedStr)
-	fmt.Println("runeCount %v", runeCount)
 	runes := make([]rune, runeCount)
 	k := 0
 	for len(uncompressedStr) > 0 {
 		r, size := utf8.DecodeRuneInString(uncompressedStr)
-		fmt.Printf("%c %v\n", r, uncompressedStr)
 		runes[k] = r
 		uncompressedStr = uncompressedStr[size:]
 		k++
 	}
 
-	idx := 0
+	for _, v := range runes {
 
-	for {
-		if idx > runeCount-1 {
-			break
+		ctx.c = string(v)
+		if _, ok := ctx.dictionary[ctx.c]; !ok {
+			ctx.dictionary[ctx.c] = rune(ctx.dictSize)
+			ctx.dictSize++
+			ctx.dictionaryToCreate.Add(ctx.c)
 		}
 
-		context_c = string(runes[idx])
-		idx += 1
-		if _, ok := context_dictionary[context_c]; !ok {
-			context_dictionary[context_c] = int(context_dictSize)
-			context_dictSize++
-			context_dictionaryToCreate.Add(context_c)
-		}
+		ctx.wc = string(ctx.w + ctx.c)
 
-		context_wc = string(string(context_w) + string(context_c))
-
-		if _, ok := context_dictionary[context_wc]; ok {
-			context_w = context_wc
+		if _, ok := ctx.dictionary[ctx.wc]; ok {
+			ctx.w = ctx.wc
 		} else {
-			if context_dictionaryToCreate.Contains(context_w) {
-				if int(context_w[0]) < 256 {
-					for i := 0; i < context_numBits; i++ {
-						context_data_val = context_data_val << 1
-						if context_data_position == 15 {
-							context_data_position = 0
-							context_data_string.WriteString(string(context_data_val))
-							context_data_val = 0
-						} else {
-							context_data_position++
-						}
-					}
-					value = int(context_w[0]) // OK
-					for i := 0; i < 8; i++ {
-						context_data_val = (context_data_val << 1) | (value & 1)
-						if context_data_position == 15 {
-							context_data_position = 0
-							context_data_string.WriteString(string(context_data_val))
-							context_data_val = 0
-						} else {
-							context_data_position++
-						}
-						value = value >> 1
-					}
-				} else {
-					value = 1
-					for i := 0; i < context_numBits; i++ {
-						context_data_val = (context_data_val << 1) | value
-						if context_data_position == 15 {
-							context_data_position = 0
-							context_data_string.WriteString(string(context_data_val))
-							context_data_val = 0
-						} else {
-							context_data_position++
-						}
-						value = 0
-					}
-					value = int(context_w[0])
-					for i := 0; i < 16; i++ {
-						context_data_val = (context_data_val << 1) | (value & 1)
-						if context_data_position == 15 {
-							context_data_position = 0
-							context_data_string.WriteString(string(context_data_val))
-							context_data_val = 0
-						} else {
-							context_data_position++
-						}
-						value = value >> 1
-					}
-				}
-				context_enlargeIn--
-				if context_enlargeIn == 0 {
-					context_enlargeIn = math.Pow(2, float64(context_numBits))
-					context_numBits++
-				}
-				context_dictionaryToCreate.Remove(context_w)
-			} else {
-				value, ok = context_dictionary[context_w]
-				for i := 0; i < context_numBits; i++ {
-					context_data_val = (context_data_val << 1) | (value & 1)
-					if context_data_position == 15 {
-						context_data_position = 0
-						context_data_string.WriteString(string(context_data_val))
-						context_data_val = 0
-					} else {
-						context_data_position++
-					}
-					value = value >> 1
-				}
-			}
-			context_enlargeIn--
-			if context_enlargeIn == 0 {
-				context_enlargeIn = math.Pow(2, float64(context_numBits))
-				context_numBits++
-			}
+			produceW(ctx)
 			// Add wc to the dictionary.
-			context_dictionary[context_wc] = int(context_dictSize)
-			context_dictSize++
-			context_w = string(context_c)
+			ctx.dictionary[ctx.wc] = rune(ctx.dictSize)
+			ctx.dictSize += 1
+			ctx.w = string(ctx.c)
 		}
 	}
 
 	// Output the code for w.
-	if context_w != "" {
-		if context_dictionaryToCreate.Contains(context_w) {
-			if int(context_w[0]) < 256 {
-				for i := 0; i < context_numBits; i++ {
-					context_data_val = context_data_val << 1
-					if context_data_position == 15 {
-						context_data_position = 0
-						context_data_string.WriteString(string(context_data_val))
-						context_data_val = 0
-					} else {
-						context_data_position++
-					}
-				}
-				value = int(context_w[0])
-				for i := 0; i < 8; i++ {
-					context_data_val = (context_data_val << 1) | (value & 1)
-					if context_data_position == 15 {
-						context_data_position = 0
-						context_data_string.WriteString(string(context_data_val))
-						context_data_val = 0
-					} else {
-						context_data_position++
-					}
-					value = value >> 1
-				}
-			} else {
-				value = 1
-				for i := 0; i < context_numBits; i++ {
-					context_data_val = (context_data_val << 1) | value
-					if context_data_position == 15 {
-						context_data_position = 0
-						context_data_string.WriteString(string(context_data_val))
-						context_data_val = 0
-					} else {
-						context_data_position++
-					}
-					value = 0
-				}
-				value = int(context_w[0])
-				for i := 0; i < 16; i++ {
-					context_data_val = (context_data_val << 1) | (value & 1)
-					if context_data_position == 15 {
-						context_data_position = 0
-						context_data_string.WriteString(string(context_data_val))
-						context_data_val = 0
-					} else {
-						context_data_position++
-					}
-					value = value >> 1
-				}
-			}
-			context_enlargeIn--
-			if context_enlargeIn == 0 {
-				context_enlargeIn = math.Pow(2, float64(context_numBits))
-				context_numBits++
-			}
-			context_dictionaryToCreate.Remove(context_w)
-		} else {
-			value, _ := context_dictionary[context_w]
-			for i := 0; i < context_numBits; i++ {
-				context_data_val = (context_data_val << 1) | (value & 1)
-				if context_data_position == 15 {
-					context_data_position = 0
-					context_data_string.WriteString(string(context_data_val))
-					context_data_val = 0
-				} else {
-					context_data_position++
-				}
-				value = value >> 1
-			}
-
-		}
-		context_enlargeIn--
-		if context_enlargeIn == 0 {
-			context_enlargeIn = math.Pow(2, float64(context_numBits))
-			context_numBits++
-		}
+	if ctx.w != "" {
+		produceW(ctx)
 	}
 
 	// Mark the end of the stream
-	value = 2
-	for i := 0; i < context_numBits; i++ {
-		context_data_val = (context_data_val << 1) | (value & 1)
-		if context_data_position == 15 {
-			context_data_position = 0
-			context_data_string.WriteString(string(context_data_val))
-			context_data_val = 0
-		} else {
-			context_data_position++
-		}
-		value = value >> 1
-	}
+	writeBits(ctx.numBits, 2, ctx.data)
 
-	// Flush the last char
 	for {
-		context_data_val = (context_data_val << 1)
-		if context_data_position == 15 {
-			fmt.Println("writeString")
-			context_data_string.WriteString(string(context_data_val))
+		if ctx.data.val <= 0 {
 			break
-		} else {
-			context_data_position++
 		}
+
+		writeBit(0, ctx.data)
+
 	}
 
-	fmt.Println("LEN %v", len(context_data_string.String()))
+	return ctx.data.s.String()
+}
 
-	return context_data_string.String()
+func produceW(ctx *Context) {
+	if ctx.dictionaryToCreate.Contains(ctx.w) {
+		var firstChar rune = rune(ctx.w[0])
+		if firstChar < 256 {
+			writeBits(ctx.numBits, 0, ctx.data)
+			writeBits(8, firstChar, ctx.data)
+		} else {
+			writeBits(ctx.numBits, 1, ctx.data)
+			writeBits(16, firstChar, ctx.data)
+		}
+		decrementEnlargeIn(ctx)
+		ctx.dictionaryToCreate.Remove(ctx.w)
+	} else {
+		writeBits(ctx.numBits, rune(ctx.dictionary[ctx.w]), ctx.data)
+	}
+	decrementEnlargeIn(ctx)
+}
+
+func writeBits(numBits int, value rune, data *EncData) {
+	for i := 0; i < numBits; i++ {
+		writeBit(rune(value&1), data)
+		value = rune(value >> 1)
+	}
+}
+
+func decrementEnlargeIn(ctx *Context) {
+	ctx.enlargeIn--
+	if int(ctx.enlargeIn) == 0 {
+		ctx.enlargeIn = math.Pow(2, float64(ctx.numBits))
+		ctx.numBits++
+	}
+}
+
+func writeBit(value rune, data *EncData) {
+	data.val = rune((data.val << 1) | value)
+	if data.position == 15 {
+		data.position = 0
+		data.s.WriteRune(rune(data.val))
+		data.val = 0
+	} else {
+		data.position++
+	}
 }
 
 // https://gist.github.com/DavidVaini/10308388
@@ -340,6 +213,7 @@ func Round(f float64) float64 {
 }
 
 func decompress(compressed string) string {
+	fmt.Println(compressed)
 
 	runeCount := utf8.RuneCountInString(compressed)
 	runes := make([]rune, runeCount)
@@ -389,12 +263,14 @@ func decompress(compressed string) string {
 	dictionary[3] = string(c)
 	w = string(c)
 	result.WriteString(w)
-	fmt.Println(dictionary)
+	/*fmt.Println(w)
+	fmt.Println(result.String())
+	fmt.Println(dictionary)*/
+
 	i := 0
 
 	for {
 		i++
-		fmt.Println(i)
 		c = readBits(numBits, data)
 
 		switch c {
@@ -424,11 +300,13 @@ func decompress(compressed string) string {
 
 		_, ok := dictionary[int(c)]
 
-		if c <= len(dictionary) && ok {
+		if ok {
 			entry = dictionary[int(c)]
 		} else {
-			if int(c) == len(dictionary) {
-				entry = string(string(w) + string(w[0]))
+			if c == dictSize {
+				wOne, size, _ := strings.NewReader(w).ReadRune()
+				size++
+				entry = string(string(w) + string(wOne))
 			} else {
 				return ""
 			}
@@ -436,14 +314,15 @@ func decompress(compressed string) string {
 
 		result.WriteString(string(entry))
 
-		fmt.Println(string(entry))
-
 		// Add w+entry[0] to the dictionary.
-		dictionary[dictSize] = w + string(entry[0])
+		entryOne, size, _ := strings.NewReader(entry).ReadRune()
+		size++
+
+		dictionary[dictSize] = w + string(entryOne)
 		dictSize++
 		enlargeIn--
 
-		w = string(entry)
+		w = entry
 
 		if int(enlargeIn) == 0 {
 			enlargeIn = math.Pow(2, float64(numBits))
@@ -483,20 +362,12 @@ func decompress64(input string) string {
 
 // WRITERS
 
-func decrementEnlargeIn(context *Context) {
-	context.enlargeIn--
-	if int(context.enlargeIn) == 0 {
-		context.enlargeIn = math.Pow(2, float64(context.numBits))
-		context.numBits++
-	}
-}
-
 // BIT EXTRACTION
 
 func readBit(data *DecData) int {
-	res := int(data.val) & int(data.position)
+	res := int(data.val) & data.position
 	data.position >>= 1
-
+	fmt.Println(res)
 	if data.position == 0 {
 		data.position = 32768
 		//val, size, _ := data.s.ReadRune()
