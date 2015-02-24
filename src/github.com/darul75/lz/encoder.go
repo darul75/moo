@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"code.google.com/p/intmath/intgr"
 	"encoding/base64"
 	"fmt"
 	"math"
@@ -69,27 +70,27 @@ func (data *Data) Decode64() string {
 // LZ ALGO STRUCT
 
 type Context struct {
-	dictionary         map[string]rune
+	dictionary         map[string]int
 	dictionaryToCreate Hashset
 	c                  string
 	wc                 string
 	w                  string
-	enlargeIn          float64
+	enlargeIn          int
 	dictSize           int
 	numBits            int
 	data               *EncData
 }
 
 type EncData struct {
-	val      rune
-	position int
+	val      int
+	position uint16
 	s        *bytes.Buffer
 }
 
 type DecData struct {
 	//s        *bytes.Reader
 	s        []rune
-	val      rune
+	val      int
 	position int
 	index    int
 }
@@ -99,12 +100,12 @@ type DecData struct {
 func compress(uncompressedStr string) string {
 	set := NewSet()
 	ctx := &Context{}
-	ctx.dictionary = make(map[string]rune)
+	ctx.dictionary = make(map[string]int)
 	ctx.dictionaryToCreate = set
 	ctx.c = ""
 	ctx.wc = ""
 	ctx.w = ""
-	ctx.enlargeIn = 2.0
+	ctx.enlargeIn = 2
 	ctx.dictSize = 3
 	ctx.numBits = 2
 	ctx.data = &EncData{0, 0, bytes.NewBufferString("")}
@@ -125,7 +126,7 @@ func compress(uncompressedStr string) string {
 
 		ctx.c = string(v)
 		if _, ok := ctx.dictionary[ctx.c]; !ok {
-			ctx.dictionary[ctx.c] = rune(ctx.dictSize)
+			ctx.dictionary[ctx.c] = ctx.dictSize
 			ctx.dictSize++
 			ctx.dictionaryToCreate.Add(ctx.c)
 		}
@@ -137,7 +138,7 @@ func compress(uncompressedStr string) string {
 		} else {
 			produceW(ctx)
 			// Add wc to the dictionary.
-			ctx.dictionary[ctx.wc] = rune(ctx.dictSize)
+			ctx.dictionary[ctx.wc] = ctx.dictSize
 			ctx.dictSize += 1
 			ctx.w = string(ctx.c)
 		}
@@ -165,7 +166,7 @@ func compress(uncompressedStr string) string {
 
 func produceW(ctx *Context) {
 	if ctx.dictionaryToCreate.Contains(ctx.w) {
-		var firstChar rune = rune(ctx.w[0])
+		var firstChar int = int(ctx.w[0])
 		if firstChar < 256 {
 			writeBits(ctx.numBits, 0, ctx.data)
 			writeBits(8, firstChar, ctx.data)
@@ -176,28 +177,28 @@ func produceW(ctx *Context) {
 		decrementEnlargeIn(ctx)
 		ctx.dictionaryToCreate.Remove(ctx.w)
 	} else {
-		writeBits(ctx.numBits, rune(ctx.dictionary[ctx.w]), ctx.data)
+		writeBits(ctx.numBits, ctx.dictionary[ctx.w], ctx.data)
 	}
 	decrementEnlargeIn(ctx)
 }
 
-func writeBits(numBits int, value rune, data *EncData) {
+func writeBits(numBits int, value int, data *EncData) {
 	for i := 0; i < numBits; i++ {
-		writeBit(rune(value&1), data)
-		value = rune(value >> 1)
+		writeBit(value&1, data)
+		value = value >> 1
 	}
 }
 
 func decrementEnlargeIn(ctx *Context) {
 	ctx.enlargeIn--
 	if int(ctx.enlargeIn) == 0 {
-		ctx.enlargeIn = math.Pow(2, float64(ctx.numBits))
+		ctx.enlargeIn = intgr.Pow(2, ctx.numBits)
 		ctx.numBits++
 	}
 }
 
-func writeBit(value rune, data *EncData) {
-	data.val = rune((data.val << 1) | value)
+func writeBit(value int, data *EncData) {
+	data.val = (data.val << 1) | value
 	if data.position == 15 {
 		data.position = 0
 		data.s.WriteRune(rune(data.val))
@@ -213,7 +214,7 @@ func Round(f float64) float64 {
 }
 
 func decompress(compressed string) string {
-	fmt.Println(compressed)
+	fmt.Println([]byte(compressed))
 
 	runeCount := utf8.RuneCountInString(compressed)
 	runes := make([]rune, runeCount)
@@ -228,7 +229,7 @@ func decompress(compressed string) string {
 	}
 
 	dictionary := make(map[int]string)
-	var enlargeIn float64 = 4
+	enlargeIn := 4
 	dictSize := 4
 	numBits := 3
 	entry := ""
@@ -239,8 +240,9 @@ func decompress(compressed string) string {
 	data := &DecData{}
 	data.s = runes
 	data.position = 32768
-	data.val = runes[0]
+	data.val = int(runes[0])
 	data.index = 1
+	//data.index = utf8.RuneLen(data.val)
 
 	dictionary[0] = "0"
 	dictionary[1] = "1"
@@ -278,14 +280,14 @@ func decompress(compressed string) string {
 			c = readBits(8, data)
 			dictionary[dictSize] = string(c)
 			dictSize++
-			c = (dictSize - 1)
+			c = dictSize - 1
 			enlargeIn--
 			break
 		case 1:
 			c = readBits(16, data)
 			dictionary[dictSize] = string(c)
 			dictSize++
-			c = (dictSize - 1)
+			c = dictSize - 1
 			enlargeIn--
 			break
 		case 2:
@@ -293,8 +295,8 @@ func decompress(compressed string) string {
 			return result.String()
 		}
 
-		if int(enlargeIn) == 0 {
-			enlargeIn = math.Pow(2, float64(numBits))
+		if enlargeIn == 0 {
+			enlargeIn = intgr.Pow(2, numBits)
 			numBits++
 		}
 
@@ -316,7 +318,7 @@ func decompress(compressed string) string {
 
 		// Add w+entry[0] to the dictionary.
 		entryOne, size, _ := strings.NewReader(entry).ReadRune()
-		size++
+		fmt.Println("size %v", size)
 
 		dictionary[dictSize] = w + string(entryOne)
 		dictSize++
@@ -324,8 +326,8 @@ func decompress(compressed string) string {
 
 		w = entry
 
-		if int(enlargeIn) == 0 {
-			enlargeIn = math.Pow(2, float64(numBits))
+		if enlargeIn == 0 {
+			enlargeIn = intgr.Pow(2, numBits)
 			numBits++
 		}
 
@@ -365,13 +367,12 @@ func decompress64(input string) string {
 // BIT EXTRACTION
 
 func readBit(data *DecData) int {
-	res := int(data.val) & data.position
+	res := data.val & data.position
 	data.position >>= 1
-	fmt.Println(res)
 	if data.position == 0 {
 		data.position = 32768
 		//val, size, _ := data.s.ReadRune()
-		data.val = data.s[data.index]
+		data.val = int(data.s[data.index])
 		//size++ // not used...
 		//data.val = val
 		data.index += 1
@@ -384,8 +385,8 @@ func readBit(data *DecData) int {
 }
 
 func readBits(numBits int, data *DecData) int {
-	var res int = 0
-	maxpower := math.Pow(2, float64(numBits))
+	res := 0
+	maxpower := intgr.Pow(2, numBits)
 	power := 1
 	for power != int(maxpower) {
 		res |= readBit(data) * power
