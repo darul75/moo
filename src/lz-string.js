@@ -382,9 +382,10 @@ var LZString = {
       power <<= 1;
     }    
 
+    next = bits
     console.log("next"+next)
     
-    switch (next = bits) {
+    switch (next) {
       case 0:
         console.log("case0");
           bits = 0;
@@ -429,6 +430,7 @@ var LZString = {
     console.log("ccccc" + c)
     dictionary[3] = c;
     w = result = c;
+    console.log(dictionary)
     /*console.log("w "+w)
     console.log("data.position "+data.position)
     console.log("numBits "+numBits)*/

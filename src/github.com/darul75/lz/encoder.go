@@ -365,7 +365,7 @@ func decompress(compressed string) string {
 	data := &DecData{}
 	data.s = bytes.NewReader([]byte(compressed))
 	data.position = 32768
-	val, size, err := data.s.ReadRune()
+	val, _, err := data.s.ReadRune()
 
 	originalValue := val
 
@@ -374,18 +374,17 @@ func decompress(compressed string) string {
 		return ""
 	}
 	data.val = val
-	data.index = size
+	data.index = 1
 	fmt.Println("data.val %v", data.val)
 
-	for i := 0; i < 3; i += 1 {
-		dictionary[string(i)] = string(i)
-	}
+	dictionary["0"] = "0"
+	dictionary["1"] = "1"
+	dictionary["2"] = "2"
 
 	// test := data.s.UnreadRune()
 	// if test != nil {
 	// 	fmt.Println("ok")
 	// }
-	// data.index -= size
 
 	fmt.Println("init c %v", originalValue)
 
@@ -411,7 +410,7 @@ func decompress(compressed string) string {
 	// 	fmt.Println("ok")
 	// }
 
-	dictionary[string(3)] = string(c)
+	dictionary["3"] = string(c)
 	w = string(c)
 	result.WriteString(w)
 	fmt.Println(dictionary)
@@ -448,8 +447,6 @@ func decompress(compressed string) string {
 		}
 
 		_, ok := dictionary[string(c)]
-
-		//fmt.Println("c %v", c)
 
 		if ok {
 			entry = dictionary[string(c)]
@@ -532,9 +529,9 @@ func readBit(data *DecData) int {
 	if data.position == 0 {
 		data.position = 32768
 		val, size, _ := data.s.ReadRune()
-		size++
+		size++ // not used...
 		data.val = val
-		data.index += size
+		//data.index += size
 	}
 	if res > 0 {
 		return 1
