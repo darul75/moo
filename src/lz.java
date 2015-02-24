@@ -293,6 +293,7 @@ public class LZString {
         context_data_position++;
     }
       
+    System.out.println(context_data_string.toString().getBytes());  
     return context_data_string.toString();
   }
 
@@ -704,11 +705,12 @@ public class LZString {
   public static void main(String[] args) throws IOException {
     String input;
 //    input = "hello";
-    input = "hello1hello2hello3hello4hello5hello6hello7hello8hello9helloAhelloBhelloChelloDhelloEhelloF";
+    input = "hello1hello2hello3hello4hello5hello6";
   
-    System.out.println(decompress(compress(input)));
-    System.out.println(decompressFromBase64(compressToBase64(input)));
-    System.out.println(decompressFromUTF16(compressToUTF16(input)));
+    //System.out.println(decompress(compress(input)));
+    compress(input);
+    /*System.out.println(decompressFromBase64(compressToBase64(input)));
+    System.out.println(decompressFromUTF16(compressToUTF16(input)));*/
 
   }
     

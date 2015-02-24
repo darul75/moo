@@ -341,6 +341,14 @@ var LZString = {
   },
 
   decompress: function (compressed) {
+    var bytes = [];
+
+    for (var i = 0; i < compressed.length; ++i)
+    {
+        bytes.push(compressed.charCodeAt(i));
+    }
+
+    console.log("bytes", bytes);
     if (compressed == null) return "";
     if (compressed == "") return null;
     console.log("compressed"+compressed.charCodeAt(0))
@@ -431,6 +439,8 @@ var LZString = {
     dictionary[3] = c;
     w = result = c;
     console.log(dictionary)
+
+
     /*console.log("w "+w)
     console.log("data.position "+data.position)
     console.log("numBits "+numBits)*/
@@ -456,7 +466,7 @@ var LZString = {
       }
 
       c = bits
-      //console.log("c " +c);
+      console.log("c " +c);
 
       switch (c) {
         case 0:
@@ -539,6 +549,10 @@ var LZString = {
       result += entry;
 
       // Add w+entry[0] to the dictionary.
+      console.log("w " +w);
+      console.log("entry[0] " +entry[0]);      
+      console.log("w + entry[0] "+w + entry[0]);
+
       dictionary[dictSize++] = w + entry[0];
       enlargeIn--;
 
@@ -546,7 +560,8 @@ var LZString = {
 
       w = entry;
 
-      if (enlargeIn == 0) {        
+      if (enlargeIn == 0) {    
+        console.log("ENLARGE")    
         enlargeIn = Math.pow(2, numBits);
         numBits++;
       }
@@ -561,8 +576,10 @@ if( typeof module !== 'undefined' && module != null ) {
 
 // var compressed = LZString.compress("hello1hello2hello3hello4hello5hello6hello7hello8hello9helloAhelloBhelloChelloDhelloEhelloF")
 
+//var compressed = LZString.compress("hello1hello2hello3hello4hello5hello6")
 var compressed = LZString.compress("hello1hello2hello3hello4hello5hello6")
-
-console.log(compressed.length)
-console.log(compressed)
 console.log(LZString.decompress(compressed))
+
+/*console.log(compressed.length)
+console.log(compressed)
+console.log(LZString.decompress(compressed))*/
