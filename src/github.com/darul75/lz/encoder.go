@@ -9,21 +9,20 @@ import (
 )
 
 func main() {
-	original := "hello1hello2hello3hello4hello5hello6"
-	//original := "hello"
-	data := &Data{original, ""}
 
-	str := data.Encode()
-	fmt.Println(len(str))
-	fmt.Println(str)
+	notworking := "hello1hello2hello3hello4hello5hello6"
+	working := "hello1hello2hello3hello4hello5"
 
-	end := data.Decode()
+	fmt.Println("ORIGINAL %v", notworking)
+	data := &Data{notworking, ""}
+	data.Encode()
+	fmt.Println("DECODED", data.Decode())
 
-	fmt.Println("decode", end)
+	fmt.Println("ORIGINAL %v", working)
+	data2 := &Data{working, ""}
+	data2.Encode()
+	fmt.Println("DECODED", data2.Decode())
 
-	// if end != original {
-	// 	//t.Errorf("OMG")
-	// }
 }
 
 // USEFUL DOC
