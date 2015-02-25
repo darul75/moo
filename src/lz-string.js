@@ -81,18 +81,24 @@ var LZString = {
         context.dictionary[context.wc] = context.dictSize++;
         context.w = String(context.c);
       }
-    }
+    }    
     
     // Output the code for w.
+    
     if (context.w !== "") {
       this.produceW(context);
     }
+
+    console.log("context.numBits "+JSON.stringify(context.data, null, " "))
     
     // Mark the end of the stream
     this.writeBits(context.numBits, 2, context.data);
     
     // Flush the last char
     while (context.data.val>0) this.writeBit(0,context.data)
+
+    console.log(context.data.string.getBytes())  
+      
     return context.data.string;
   },
   
@@ -210,5 +216,14 @@ var LZString = {
   }
 };
 
+String.prototype.getBytes = function () {
+  var bytes = [];
+  for (var i = 0; i < this.length; ++i) {
+    bytes.push(this.charCodeAt(i));
+  }
+  return bytes;
+};
+
 var compressed = LZString.compress("hello1hello2hello3hello4hello5hello6")
+console.log(compressed.getBytes())
 console.log(LZString.decompress(compressed))
