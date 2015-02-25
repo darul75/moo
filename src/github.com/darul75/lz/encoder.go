@@ -173,6 +173,7 @@ func compress(uncompressedStr string) string {
 	}
 
 	fmt.Println("compressed string length %v", len(ctx.data.s.String()))
+	fmt.Println("compressed string %q", ctx.data.s.String())
 
 	return ctx.data.s.String()
 }
