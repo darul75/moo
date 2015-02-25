@@ -243,7 +243,7 @@ func decompress(compressed string) string {
 	// SEE WHAT INSIDE
 	j := 0
 	for index, runeValue := range compressed {
-		fmt.Printf("%#U starts at byte position %d\n", runeValue, index)
+		fmt.Printf("%#U %v starts at byte position %d\n", runeValue, runeValue, index)
 		runes[j] = runeValue
 		j++
 	}
