@@ -267,6 +267,8 @@ public class LZString {
       }
     }
 
+    System.out.println(context_data_string.toString().getBytes());  
+
     // Mark the end of the stream
     value = 2;
     for (i = 0; i < context_numBits; i++) {
