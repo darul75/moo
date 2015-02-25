@@ -7,6 +7,7 @@ import (
 	//"encoding/binary"
 	"fmt"
 	"strings"
+	//"unicode/utf16"
 	"unicode/utf8"
 )
 
@@ -102,7 +103,7 @@ type EncData struct {
 type DecData struct {
 	//s        *bytes.Reader
 	s        []rune
-	val      rune
+	val      int
 	position uint16
 	index    int
 }
@@ -211,7 +212,12 @@ func writeBit(value uint16, data *EncData) {
 		buf[0] = l
 		buf[1] = h
 		// TRY WRITE THESE 2 BYTES INSTEAD ABOVE...
-		data.s.Write(buf)
+		//data.s.Write(buf)
+		// TRY UTF 16 ?
+		/*r1, r2 := utf16.EncodeRune(rune(data.val))
+		data.s.WriteRune(r1)
+		data.s.WriteRune(r2)		*/
+		// NOW
 		data.s.WriteRune(rune(data.val))
 		data.val = 0
 	} else {
@@ -229,6 +235,7 @@ func decrementEnlargeIn(ctx *Context) {
 
 func decompress(compressed string) string {
 	fmt.Println("compressed bytes in decomp %v", []byte(compressed))
+	fmt.Println("rune count %v", utf8.RuneCountInString(compressed))
 
 	runes := make([]rune, len(compressed))
 
@@ -257,7 +264,7 @@ func decompress(compressed string) string {
 	data := &DecData{}
 	data.s = runes
 	data.position = 32768
-	data.val = runes[0]
+	data.val = int(runes[0])
 	data.index = 1
 	//data.index = utf8.RuneLen(data.val)
 
@@ -387,7 +394,7 @@ func readBit(data *DecData) int {
 	if data.position == 0 {
 		data.position = 32768
 		//val, size, _ := data.s.ReadRune()
-		data.val = data.s[data.index]
+		data.val = int(data.s[data.index])
 		//size++ // not used...
 		//data.val = val
 		data.index += 1
