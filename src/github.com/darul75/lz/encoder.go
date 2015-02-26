@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	//"encoding/binary"
 	"fmt"
+	"strconv"
 	"strings"
 	//"unicode/utf16"
 	"unicode/utf8"
@@ -13,7 +14,8 @@ import (
 
 func main() {
 
-	notworking := "hello1hello2hello3hello4hello5hello6"
+	//notworking := "hello1hello2hello3hello4hello5hello6"
+	notworking := "hel"
 	//	working := "hello1hello2hello3hello4hello5"
 
 	fmt.Println("ORIGINAL %v", notworking)
@@ -32,7 +34,7 @@ func main() {
 	  26432,
 	  55424 ]*/
 
-	fmt.Println("DECODED", data.Decode())
+	//fmt.Println("DECODED", data.Decode())
 
 	/*	fmt.Println("ORIGINAL %v", working)
 		data2 := &Data{working, ""}
@@ -95,15 +97,15 @@ type Context struct {
 }
 
 type EncData struct {
-	val      uint16
+	val      uint8
 	position uint16
 	s        *bytes.Buffer
 }
 
 type DecData struct {
 	//s        *bytes.Reader
-	s        []rune
-	val      int
+	s        []uint8
+	val      uint8
 	position uint16
 	index    int
 }
@@ -130,6 +132,7 @@ func compress(uncompressedStr string) string {
 	for len(uncompressedStr) > 0 {
 		r, size := utf8.DecodeRuneInString(uncompressedStr)
 		runes[k] = uint16(r)
+		fmt.Println(r)
 		uncompressedStr = uncompressedStr[size:]
 		k++
 	}
@@ -180,8 +183,13 @@ func compress(uncompressedStr string) string {
 
 func produceW(ctx *Context) {
 	if ctx.dictionaryToCreate.Contains(ctx.w) {
+		fmt.Println("write %v", ctx.w)
+		fmt.Println("write firstchar%v", ctx.w[0])
+		fmt.Println(strconv.FormatInt(int64(ctx.w[0]), 2))
+		fmt.Println("ctx.numBits%v", ctx.numBits)
 		var firstChar uint16 = uint16(ctx.w[0])
 		if firstChar < 256 {
+			fmt.Println("below")
 			writeBits(ctx.numBits, 0, ctx.data)
 			writeBits(8, firstChar, ctx.data)
 		} else {
@@ -204,22 +212,12 @@ func writeBits(numBits uint16, value uint16, data *EncData) {
 }
 
 func writeBit(value uint16, data *EncData) {
-	data.val = (data.val << 1) | value
-	if data.position == 15 {
+	data.val = (data.val << 1) | uint8(value)
+	if data.position == 7 {
 		data.position = 0
-		fmt.Println("written rune %v", data.val)
-		var l, h uint8 = uint8(data.val >> 8), uint8(data.val & 0xff)
-		buf := make([]byte, 2)
-		buf[0] = l
-		buf[1] = h
-		// TRY WRITE THESE 2 BYTES INSTEAD ABOVE...
-		//data.s.Write(buf)
-		// TRY UTF 16 ?
-		/*r1, r2 := utf16.EncodeRune(rune(data.val))
-		data.s.WriteRune(r1)
-		data.s.WriteRune(r2)		*/
-		// NOW
-		data.s.WriteRune(rune(data.val))
+		buf := make([]byte, 1)
+		buf[0] = data.val
+		data.s.Write(buf)
 		data.val = 0
 	} else {
 		data.position++
@@ -238,23 +236,12 @@ func decompress(compressed string) string {
 	fmt.Println("compressed bytes in decomp %v", []byte(compressed))
 	fmt.Println("rune count %v", utf8.RuneCountInString(compressed))
 
-	runes := make([]rune, len(compressed))
+	compressed_bytes := []byte(compressed)
 
-	// SEE WHAT INSIDE
-	j := 0
-	for index, runeValue := range compressed {
-		fmt.Printf("%#U %v starts at byte position %d\n", runeValue, runeValue, index)
-		runes[j] = runeValue
-		j++
-	}
-	/*for k, w := 0, 0; k < len(compressed); k += w {
-		runeValue, width := utf8.DecodeRuneInString(compressed[k:])
-		fmt.Printf("%#U starts at byte position %d\n", runeValue, k)
-		w = width
-	}*/
+	runes := make([]uint8, len(compressed_bytes))
 
 	dictionary := make(map[int]string)
-	enlargeIn := 4
+	enlargeIn := 1
 	dictSize := 4
 	numBits := 3
 	entry := ""
@@ -264,8 +251,8 @@ func decompress(compressed string) string {
 
 	data := &DecData{}
 	data.s = runes
-	data.position = 32768
-	data.val = int(runes[0])
+	data.position = 128
+	data.val = uint8(runes[1])
 	data.index = 1
 	//data.index = utf8.RuneLen(data.val)
 
@@ -289,6 +276,7 @@ func decompress(compressed string) string {
 
 	dictionary[3] = string(c)
 	w = string(c)
+	fmt.Println("w %v", w)
 	result.WriteString(w)
 
 	i := 0
@@ -337,6 +325,8 @@ func decompress(compressed string) string {
 		}
 
 		result.WriteString(string(entry))
+
+		fmt.Println("string(entry) %v", string(entry))
 
 		// Add w+entry[0] to the dictionary.
 		entryOne, size, _ := strings.NewReader(entry).ReadRune()
@@ -393,9 +383,10 @@ func readBit(data *DecData) int {
 	res := uint16(data.val) & data.position
 	data.position >>= 1
 	if data.position == 0 {
-		data.position = 32768
+		data.position = 128
 		//val, size, _ := data.s.ReadRune()
-		data.val = int(data.s[data.index])
+		data.index++
+		data.val = uint8(data.s[data.index])
 		//size++ // not used...
 		//data.val = val
 		data.index += 1
